@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 · S8 极端形态与体量</title>
+<style>
+  /*
+   * 这一页压的是「量」和「形态」两个方向上的极端，目标是「不崩、不报错」，
+   * 而不是「结果好看」。
+   *
+   * 量这一头：页面上有九千多个元素，超过采集层单页 8000 的上限。
+   * 期望是照常出结果，并且明确写一句「页面过大，只采集了前 8000 个元素」。
+   * 静默截断是最坏的做法，因为用户会拿一份残缺的色板当完整的用。
+   *
+   * 形态这一头：
+   *     · 深层嵌套（四百层）          递归取值路径会不会爆栈
+   *     · 超大字号 120px 与超小字号 9px  字号聚类两端的边界
+   *     · 横向溢出的宽元素             宽度记录用的比例判定
+   *     · 固定定位的头部               不在常规流里，但仍应被采到
+   *     · 从右往左的段落               文字方向不该影响任何判据
+   *     · emoji 与组合字符             字符统计不该按码元算错
+   *
+   * 还有一条要靠换环境才能验：把系统或浏览器切到深色，再采一次。
+   * 页面自己声明了 color-scheme，深色下底色判定会跟着换基准。
+   */
+
+  * { box-sizing: border-box; }
+  html { color-scheme: light dark; }
+  html, body { margin: 0; }
+  body {
+    background: #ffffff;
+    color: #1f1f1c;
+    font: 16px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 24px 80px; }
+
+  /* 固定定位的头部 */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: #111827;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    font-size: 15px;
+    z-index: 10;
+  }
+  .spacer { height: 56px; }
+
+  h1 { font-size: 34px; margin: 20px 0 10px; }
+  h2 { font-size: 18px; margin: 30px 0 10px; }
+  p { color: #4a4a46; margin: 0 0 12px; }
+
+  .huge { font-size: 120px; line-height: 1.05; margin: 0; }
+  .tiny { font-size: 9px; color: #6b6a64; }
+
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 16px 0; }
+  .card { background: #ffffff; border: 1px solid #e5e5e1; border-radius: 12px; padding: 20px; }
+  button { font: inherit; font-size: 15px; padding: 9px 16px; border-radius: 8px; border: 0; background: #2563eb; color: #fff; cursor: pointer; }
+
+  .overflow-wide { width: 2200px; height: 40px; background: #fde68a; }
+
+  .nested-root { padding: 1px; background: #f3f4f6; }
+  .nested { padding: 1px; background: #f9fafb; }
+
+  .dots { display: flex; flex-wrap: wrap; }
+  .dot { width: 6px; height: 6px; background: #94a3b8; }
+
+  /* 深色下的覆写。切到深色再采一次，底色基准会跟着换 */
+  @media (prefers-color-scheme: dark) {
+    body { background: #0b0d12; color: #e8ecf4; }
+    p, .tiny { color: #98a2b3; }
+    .card { background: #161a22; border-color: #2a303c; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">固定定位的头部，不在常规流里</div>
+<div class="spacer"></div>
+
+<div class="wrap">
+
+  <h1>极端形态与体量</h1>
+  <p>这一页不需要好看。它只回答一个问题：碰到又大又怪的页面，会不会报错、会不会静默截断。</p>
+
+  <h2>字号两端</h2>
+  <p class="huge">大</p>
+  <p class="tiny">这一段是 9px，用来试字号聚类下端的边界。再小下去就没法读了，
+  这里刻意留在还能读的边缘，看它会不会被当成噪点过滤掉、或者反过来霸占一档。</p>
+
+  <h2>常规组件（对照组）</h2>
+  <p>下面这两张卡片和一个按钮是这一页里唯一「正常」的东西，用来确认极端形态没有把常规识别带崩。</p>
+  <div class="cards">
+    <div class="card">卡片一，白底圆角 12，1px 描边。</div>
+    <div class="card">卡片二，参数与左边一致。</div>
+  </div>
+  <p><button>一个普通按钮</button></p>
+
+  <h2>横向溢出的宽元素</h2>
+  <p class="tiny">下面这条有 2200px 宽，超出视口，会带来横向滚动条。</p>
+  <div class="overflow-wide"></div>
+
+  <h2>深层嵌套（四百层）</h2>
+  <p class="tiny">四条嵌套链，每条四百层，用来试取值路径上的递归深度。</p>
+  <div id="nested-host"></div>
+
+  <h2>从右往左与特殊字符</h2>
+  <p dir="rtl" lang="ar">هذه فقرة مكتوبة من اليمين إلى اليسار، للتأكد من أن اتجاه النص لا يؤثر على أي حكم.</p>
+  <p>组合字符：e&#769; a&#776; o&#808;　emoji：🚀 🎨 🧪　零宽字符：&#8203;　全角空格：　</p>
+
+  <h2>九千个元素</h2>
+  <p class="tiny">下面这块由脚本生成九千个 6×6 的方块。连同上面的内容，元素总数超过采集层单页 8000 的上限。</p>
+  <div class="dots" id="dot-host"></div>
+
+</div>
+
+<script>
+  // 深嵌套：每层只有 1px 内边距，四百层叠起来约 800px 高
+  (function () {
+    var host = document.getElementById('nested-host');
+    for (var chain = 0; chain < 4; chain++) {
+      var root = document.createElement('div');
+      root.className = 'nested-root';
+      var cur = root;
+      for (var d = 0; d < 400; d++) {
+        var next = document.createElement('div');
+        next.className = 'nested';
+        cur.appendChild(next);
+        cur = next;
+      }
+      host.appendChild(root);
+    }
+  })();
+
+  // 九千个方块，排在常规内容之后，用来触发 8000 的截断
+  (function () {
+    var host = document.getElementById('dot-host');
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < 9000; i++) {
+      var d = document.createElement('div');
+      d.className = 'dot';
+      frag.appendChild(d);
+    }
+    host.appendChild(frag);
+  })();
+</script>
+</body>
+</html>

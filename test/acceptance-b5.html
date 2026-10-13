@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B5 验收 · 圆角、边框与投影</title>
+<style>
+  /*
+   * 这一页是给「圆角、边框与投影」这条线做验收用的，所有值都是刻意摆的。
+   *
+   * 三条安排：
+   *   一、圆角按元素类型分开：按钮 8、输入框 6、卡片 12、胶囊给徽标和
+   *       强调按钮。四种类型四个值，任何两组混在一起都能从结果上看出来。
+   *   二、边框按「边数」分开：输入框和卡片是四边描边，导航栏底边和
+   *       分割线是单边。两者宽度和颜色可能完全一样，只有边数不同。
+   *   三、整页刻意不使用任何投影。结果里必须明确写出「完全没有使用投影」，
+   *       而不是空着不提，也不是编一个默认阴影出来。
+   *
+   * 想验另一条分支（页面有投影时的输出），在开发者工具里给 .card 加上
+   * 一行 box-shadow: 0 4px 12px rgba(0, 0, 0, .06)，重新点一次插件即可。
+   * test/acceptance-b6.html 里的卡片本来就带投影，也可以直接对照。
+   *
+   * 建议在窗口宽度 1440 以上打开，窄窗口下内容会被视口截断。
+   */
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #1f1f1c;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  /* 居中用外层 flex，不用 margin: auto。自动外边距被解析后是一段真实像素值，
+     分析层会把它读成一个随视口变化的间距档位，而它不是设计值。 */
+  .center { display: flex; justify-content: center; }
+
+  .shell {
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 24px;
+  }
+
+  /* ---------- 导航栏：单边描边（只有底边） ----------
+     内边距写在这个 nav 元素自己身上。写在里面的容器上虽然也能达到
+     同样的视觉效果，但插件读的是元素自身的计算样式，那样会读到 0，
+     报出来的导航栏内边距就是假的。 */
+  nav.top {
+    background: #ffffff;
+    border-bottom: 1px solid #e8e8e6;
+    padding: 20px 24px;
+  }
+
+  .top-inner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  /* 导航链接刻意不加内边距：没有内边距又没有底色和描边的链接
+     不算「按钮形态」，这样它就不会混进按钮组件里去 */
+  .top-inner a {
+    color: #4a4a46;
+    text-decoration: none;
+  }
+
+  .top-inner .brand {
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  /* ---------- 内容区 ---------- */
+  .content { padding: 48px 0 64px; }
+
+  h1 { font-size: 40px; line-height: 48px; margin: 0 0 16px; }
+  h2 { font-size: 24px; line-height: 32px; margin: 0 0 16px; }
+  h3 { font-size: 18px; line-height: 26px; margin: 0 0 8px; }
+  p  { margin: 0 0 24px; color: #4a4a46; }
+
+  section + section { margin-top: 48px; }
+
+  /* ---------- 卡片：圆角 12，四边描边 ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .card {
+    padding: 24px;
+    border: 1px solid #e8e8e6;
+    border-radius: 12px;
+    background: #fafafa;
+  }
+
+  .card p { margin: 0; }
+
+  /* ---------- 输入框：圆角 6，四边描边 ---------- */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 420px;
+  }
+
+  .field input {
+    padding: 10px 14px;
+    border: 1px solid #d8d8d4;
+    border-radius: 6px;
+    font-size: 16px;
+    font-family: inherit;
+    background: #ffffff;
+    color: #1f1f1c;
+  }
+
+  /* ---------- 分割线：单边描边，只有顶边 ----------
+     和输入框同为 1px 实线，颜色也可能一样，唯一的差别是它有
+     四条边而这里只有一条。少了边数这个判据，两者会被合成一条。 */
+  .divider {
+    height: 24px;
+    border-top: 1px solid #e8e8e6;
+    margin: 0 0 24px;
+  }
+
+  /* ---------- 按钮：圆角 8，主按钮实心、次按钮描边 ---------- */
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  button {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  button.primary {
+    background: #3d5afe;
+    color: #ffffff;
+    border: 0;
+  }
+
+  button.secondary {
+    background: #ffffff;
+    color: #1f1f1c;
+    border: 1px solid #d0d0d0;
+  }
+
+  /* 胶囊按钮：圆角 999。和徽标是同一档，两处印证才立得住这一档 */
+  button.pill {
+    padding: 10px 22px;
+    background: #1f1f1c;
+    color: #ffffff;
+    border: 0;
+    border-radius: 999px;
+  }
+
+  /* ---------- 徽标：同样是胶囊圆角，但这不是卡片 ----------
+     它有底色、有圆角，在采集层和卡片是同一类「有表面的元素」。
+     圆角归组时必须把它和卡片分开，否则一页徽标就能把卡片的
+     圆角结论从 12 改成胶囊。 */
+  .badges {
+    display: flex;
+    gap: 8px;
+  }
+
+  .badge {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: #eef0ff;
+    color: #3d4bd4;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="top-inner">
+    <span class="brand">Acme</span>
+    <a href="#">产品</a>
+    <a href="#">定价</a>
+    <a href="#">文档</a>
+  </div>
+</nav>
+
+<div class="center">
+  <div class="shell">
+    <div class="content">
+
+      <section>
+        <h1>圆角、边框与投影验收样本</h1>
+        <p>四种元素用四个不同的圆角，边框按边数分成两类，整页不使用任何投影。
+        插件的结果里应当能看到下面这张对照表，并且明确写出「完全没有使用投影」。</p>
+      </section>
+
+      <section>
+        <h2>卡片</h2>
+        <p>圆角 12，四边各 1px 描边，底色 #fafafa。三张卡片的参数完全一样。</p>
+        <div class="cards">
+          <div class="card"><h3>第一张</h3><p>卡片用中等偏大的圆角，12 是常见的一档。</p></div>
+          <div class="card"><h3>第二张</h3><p>它的描边是四条边的，说明这是一道完整的框。</p></div>
+          <div class="card"><h3>第三张</h3><p>没有投影，卡片和页面的区分只靠底色和描边。</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>表单</h2>
+        <p>输入框圆角 6，四边各 1px 描边。它比按钮的 8 小一档，长条形的框用大圆角会显得松。</p>
+        <div class="field">
+          <label>邮箱</label>
+          <input type="email" placeholder="you@example.com">
+        </div>
+      </section>
+
+      <section>
+        <h2>按钮与分割线</h2>
+        <p>主按钮实心无描边，次按钮白底加一圈描边，两者圆角都是 8。
+        下面那条分割线只有顶边有描边，宽度和颜色与输入框的描边一致，差别只在边数。</p>
+        <div class="divider"></div>
+        <div class="actions">
+          <button class="primary">开始使用</button>
+          <button class="secondary">查看文档</button>
+          <button class="pill">立即购买</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>徽标</h2>
+        <p>这三个徽标也是胶囊圆角，但它们不是卡片。结果里它们应当被归到「其他元素」，
+        而不是混进卡片的圆角里。</p>
+        <div class="badges">
+          <span class="badge">新功能</span>
+          <span class="badge">测试中</span>
+          <span class="badge">限时</span>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

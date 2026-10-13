@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B1 · S1 典型站点</title>
+<style>
+  /*
+   * 这一页是 B1 第一条验收（能正常提取、不报错）的基线样本。
+   * 它长得像一个普通的产品落地页，颜色、字号、间距、组件四样都有，
+   * 目的是先确认「最普通的一页能不能跑通」，跑不通就不必看后面那些边界页了。
+   *
+   * 页面上声明的关键值（期望提取结果应当逐项对上）：
+   *   页面底色      #f5f6f8
+   *   品牌色        #2563eb   主按钮、链接强调
+   *   正文色        #0f172a
+   *   次级文字      #5b6472
+   *   卡片          白底、圆角 14、内边距 24、投影 0 6px 18px rgba(15,23,42,.06)
+   *   主按钮        实心 #2563eb、圆角 8、内边距 10/18
+   *   次按钮        白底、1px #d3d8de 描边、圆角 8
+   *   输入框        1px #d3d8de 描边、圆角 8
+   *   导航栏        白底、1px #e3e6ea 底边线
+   *   页脚          深底 #111827、浅字
+   *
+   * 另外这一页刻意混了中文、一个 emoji、一段长正文：
+   * 长正文是用来把「顶层直接承载的文字量」推过 200 字的稀疏阈值，
+   * 免得被覆盖范围判定成空壳。emoji 是验字符统计不炸。
+   */
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #f5f6f8;
+    color: #0f172a;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- 导航 ---------- */
+  nav {
+    background: #ffffff;
+    border-bottom: 1px solid #e3e6ea;
+    padding: 0 24px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  nav .brand { font-weight: 700; font-size: 18px; }
+  nav a { color: #5b6472; text-decoration: none; }
+
+  /* ---------- 首屏 ---------- */
+  .hero { background: #111827; color: #ffffff; padding: 72px 24px; }
+  .hero h1 { font-size: 44px; line-height: 1.15; margin: 0 0 16px; letter-spacing: -0.015em; }
+  .hero p { font-size: 17px; color: #b6bdc9; margin: 0 0 28px; max-width: 620px; }
+  .hero .actions { display: flex; gap: 12px; }
+
+  /* ---------- 按钮 ---------- */
+  button {
+    font: inherit;
+    font-size: 15px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 0;
+    cursor: pointer;
+  }
+  .primary { background: #2563eb; color: #ffffff; }
+  .secondary { background: #ffffff; color: #0f172a; border: 1px solid #d3d8de; }
+
+  /* ---------- 卡片区 ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding: 56px 0 8px;
+  }
+  .card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  }
+  .card h3 { font-size: 18px; margin: 0 0 8px; }
+  .card p { font-size: 15px; color: #5b6472; margin: 0; }
+
+  /* ---------- 表单 ---------- */
+  .form { padding: 56px 0; }
+  .form h2 { font-size: 24px; margin: 0 0 20px; }
+  .field { display: flex; flex-direction: column; gap: 8px; max-width: 420px; margin-bottom: 18px; }
+  .field label { font-size: 14px; color: #5b6472; }
+  .field input, .field select, .field textarea {
+    font: inherit;
+    font-size: 15px;
+    padding: 10px 14px;
+    border: 1px solid #d3d8de;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  /* ---------- 页脚 ---------- */
+  footer { background: #111827; color: #9aa3b2; padding: 40px 24px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">Northwind</span>
+  <a href="#">产品</a>
+  <a href="#">定价</a>
+  <a href="#">文档</a>
+  <a href="#">关于</a>
+</nav>
+
+<section class="hero">
+  <div class="wrap">
+    <h1>把散落的团队知识，收进一个能搜的地方</h1>
+    <p>Northwind 把文档、讨论和工单汇到一处。写完就走，剩下的交给索引。支持中文全文检索，也支持按项目、按人、按时间回溯。</p>
+    <div class="actions">
+      <button class="primary">免费开始</button>
+      <button class="secondary">预约演示</button>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="cards">
+    <div class="card">
+      <h3>一处写，处处见</h3>
+      <p>同一份内容不会出现三个版本。改一次，引用的地方一起更新，历史随时能翻回去。</p>
+    </div>
+    <div class="card">
+      <h3>搜得到，才用得上</h3>
+      <p>正文、标题、标签、附件一起进索引。中英文混排、拼写近似、同义词都能命中。</p>
+    </div>
+    <div class="card">
+      <h3>权限跟着人走</h3>
+      <p>谁进哪个空间，跟组织架构一起变。离职的人当天就看不到昨天的页面，这一步不需要人工维护。</p>
+    </div>
+  </div>
+
+  <section class="form">
+    <h2>申请试用</h2>
+    <div class="field">
+      <label>工作邮箱</label>
+      <input type="email" placeholder="you@example.com">
+    </div>
+    <div class="field">
+      <label>团队规模</label>
+      <select>
+        <option>1 到 10 人</option>
+        <option>11 到 50 人</option>
+        <option>50 人以上</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>想解决什么问题</label>
+      <textarea rows="3" placeholder="随便写两句"></textarea>
+    </div>
+    <button class="primary">提交申请</button>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    Northwind 知识库 · 这是 B1 验收用的样例页，不是真实产品。
+  </div>
+</footer>
+
+</body>
+</html>

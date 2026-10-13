@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 · S7 提取不改变原页面（自检）</title>
+<style>
+  /*
+   * 这一页是 B1 第二条验收（提取过程不改变原页面的外观和功能）的载体。
+   *
+   * 关键在于「不改变」这件事不能靠肉眼看。肉眼只能看出「看起来一样」，
+   * 看不出一份被留下的空 style 属性、一个多出来的节点、或者一串被吞掉的
+   * 事件。所以这一页自己带一个自检按钮，把结论变成几个数：
+   *
+   *     打开页面时先点一次「自检」记下基线
+   *     点插件提取
+   *     回来再点一次「自检」
+   *     两边逐项比对，任何一项不一致都会标红
+   *
+   * 比对的项：
+   *   · DOM 元素总数         提取只该读，不该增删任何节点
+   *   · 带 style 属性的元素数 提取不该往页面上写内联样式
+   *   · body 自己的 style 属性
+   *   · 页面滚动位置          取数不该动滚动
+   *   · 计数器数值            按钮还能不能点、状态还在不在
+   *   · 输入框内容            表单状态有没有被重置
+   *   · 静默区被改动的次数     一个专供观察的区块，被外部改动就会记数
+   *   · 三个关键元素的位置与尺寸 布局有没有抖
+   *
+   * 页面上跑着一个 CSS 动画，它不在比对的三个元素里，因为动画元素的位置
+   * 每帧都在变，拿它比会永远不一致。这里刻意把它单独摆开。
+   */
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #f7f7f5;
+    color: #1f1f1c;
+    font: 16px/1.65 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    /* 页面故意做长，好让滚动位置这一项有意义 */
+    padding-bottom: 900px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 32px 24px; }
+  h1 { font-size: 28px; margin: 0 0 8px; }
+  h2 { font-size: 17px; margin: 26px 0 10px; }
+  p { color: #55524c; margin: 0 0 12px; }
+
+  .card {
+    background: #ffffff;
+    border: 1px solid #e4e2db;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  button {
+    font: inherit;
+    font-size: 15px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid #d6d3ca;
+    background: #ffffff;
+    color: #1f1f1c;
+    cursor: pointer;
+  }
+  button.primary { background: #3d5afe; border-color: #3d5afe; color: #ffffff; }
+
+  input, select {
+    font: inherit;
+    font-size: 15px;
+    padding: 9px 12px;
+    border: 1px solid #d6d3ca;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .count { font-size: 22px; font-weight: 700; min-width: 2ch; color: #3d5afe; }
+
+  .hover-me {
+    display: inline-block;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: #eef0ff;
+    border: 1px solid #c7ccff;
+  }
+  .hover-me:hover { background: #dde2ff; }
+
+  /* 动画单独摆，不参与位置比对 */
+  @keyframes slide { from { transform: translateX(0); } to { transform: translateX(240px); } }
+  .runner {
+    width: 48px; height: 48px; border-radius: 12px; background: #10b981;
+    animation: slide 3s ease-in-out infinite alternate;
+  }
+
+  table.check { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.check th, table.check td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #eceae3; }
+  table.check th { color: #8a8781; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.same { color: #2f7d4f; }
+  td.diff { color: #a3352a; font-weight: 700; }
+  .verdict { margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+  .verdict.ok { background: #f0f8f2; border: 1px solid #bfdcc7; color: #1f5c36; }
+  .verdict.bad { background: #fdf3f2; border: 1px solid #f0ccc7; color: #7a2b21; }
+  .hint { font-size: 13px; color: #8a8781; }
+
+  #watch { border: 1px dashed #cfccc4; border-radius: 10px; padding: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>提取不改变原页面</h1>
+  <p>这一页所有能点的东西都是给提取前后做对照用的。按下面的顺序走一遍即可。</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">操作顺序</h2>
+    <p style="margin-bottom:8px">1 · 先随便改点状态：点几下加号、在输入框里打字、选一个下拉项、滚动到页面中间。</p>
+    <p style="margin-bottom:8px">2 · 点「自检」记下基线。</p>
+    <p style="margin-bottom:8px">3 · 点插件图标提取这一页。右侧会开出面板并显示结果，看完收起面板即可。</p>
+    <p style="margin-bottom:0">4 · 回来再点一次「自检」。表格里每一项都应当是绿色的一致。</p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">可交互状态</h2>
+    <div class="row">
+      <button id="plus">点我加一</button>
+      <span class="count" id="counter">0</span>
+      <span class="hint">局部的 JS 状态，提取不该把它清掉</span>
+    </div>
+    <div class="row">
+      <input id="text" type="text" placeholder="在这里打几个字">
+      <select id="pick">
+        <option>选项一</option>
+        <option>选项二</option>
+        <option>选项三</option>
+      </select>
+      <label><input type="checkbox" id="flag"> 勾选框</label>
+    </div>
+    <div class="row">
+      <span class="hover-me" id="hoverTarget">移上来看看还有没有悬停效果</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">动画（不参与比对）</h2>
+    <div class="runner"></div>
+    <p class="hint" style="margin-top:10px">这个方块一直在动，所以它的位置不参与比对。提取之后它应当还在动，不是僵住的。</p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">三个被测量的关键元素</h2>
+    <p style="margin-bottom:10px">下面这三个元素的位置和尺寸会被记进基线。提取前后只要有一个像素的差别，自检就会标红。</p>
+    <div class="row">
+      <span id="m1" style="display:inline-block;padding:10px 16px;background:#ffffff;border:1px solid #d6d3ca;border-radius:8px">测量点一</span>
+      <span id="m2" style="display:inline-block;padding:14px 22px;background:#3d5afe;color:#fff;border-radius:10px">测量点二</span>
+      <span id="m3" style="display:inline-block;padding:8px;background:#f0f0ec;border-radius:6px">测量点三</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">静默区</h2>
+    <p class="hint" style="margin-bottom:10px">这块区域挂了一个观察器，只要有外部改动就会被记下来。它自己不会变。</p>
+    <div id="watch">
+      <span>甲</span><span>乙</span><span>丙</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">自检</h2>
+    <div class="row">
+      <button class="primary" id="baseline">记下基线</button>
+      <button id="compare">自检并比对</button>
+      <button id="clearBase">清空基线</button>
+    </div>
+    <div id="report"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">控制台</h2>
+    <p style="margin-bottom:0">提取前后都打开一次 DevTools 控制台，两边都不该有红色报错。
+    有报错就说明注入在页面上留下了痕迹。</p>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var mutations = 0;
+  var observer = new MutationObserver(function (list) {
+    mutations += list.length;
+  });
+  observer.observe(document.getElementById('watch'), {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    characterData: true,
+  });
+
+  var counter = 0;
+  var counterEl = document.getElementById('counter');
+  document.getElementById('plus').addEventListener('click', function () {
+    counter++;
+    counterEl.textContent = String(counter);
+  });
+
+  function styledCount() {
+    return document.querySelectorAll('[style]').length;
+  }
+
+  function rectOf(id) {
+    var el = document.getElementById(id);
+    if (!el) return '缺失';
+    var r = el.getBoundingClientRect();
+    return [r.x, r.y, r.width, r.height].map(function (n) { return Math.round(n * 10) / 10; }).join(', ');
+  }
+
+  function snapshot() {
+    return {
+      'DOM 元素总数': document.querySelectorAll('*').length,
+      '带 style 属性的元素数': styledCount(),
+      'body 的 style 属性': document.body.getAttribute('style') || '(空)',
+      '页面滚动位置': Math.round(window.scrollY),
+      '计数器数值': counter,
+      '输入框内容': document.getElementById('text').value,
+      '静默区被改动次数': mutations,
+      '测量点一 x,y,w,h': rectOf('m1'),
+      '测量点二 x,y,w,h': rectOf('m2'),
+      '测量点三 x,y,w,h': rectOf('m3'),
+    };
+  }
+
+  var baseline = null;
+  var report = document.getElementById('report');
+
+  document.getElementById('baseline').addEventListener('click', function () {
+    baseline = snapshot();
+    report.innerHTML = '<div class="verdict ok">基线已记下 ' + Object.keys(baseline).length +
+      ' 项。现在去点插件提取，回来再点「自检并比对」。</div>';
+  });
+
+  document.getElementById('clearBase').addEventListener('click', function () {
+    baseline = null;
+    report.innerHTML = '<div class="verdict ok">基线已清空。</div>';
+  });
+
+  document.getElementById('compare').addEventListener('click', function () {
+    if (!baseline) {
+      report.innerHTML = '<div class="verdict bad">还没有基线。先点「记下基线」。</div>';
+      return;
+    }
+    var now = snapshot();
+    var rows = '';
+    var diff = 0;
+    Object.keys(baseline).forEach(function (k) {
+      var same = String(baseline[k]) === String(now[k]);
+      if (!same) diff++;
+      rows += '<tr><td>' + k + '</td><td>' + baseline[k] + '</td><td>' + now[k] +
+        '</td><td class="' + (same ? 'same' : 'diff') + '">' + (same ? '一致' : '不一致') + '</td></tr>';
+    });
+
+    report.innerHTML =
+      '<table class="check"><thead><tr><th>项目</th><th>基线</th><th>现在</th><th>判定</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>' +
+      (diff === 0
+        ? '<div class="verdict ok">全部一致。提取没有在这个页面上留下任何痕迹。</div>'
+        : '<div class="verdict bad">有 ' + diff + ' 项不一致，逐条看是哪一个。滚动位置和计数器这两项' +
+          '在你手上有动作时会变，先排除自己刚才动过。</div>');
+  });
+})();
+</script>
+</body>
+</html>

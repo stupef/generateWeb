@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B6 验收 · 基础组件风格识别</title>
+<style>
+  /*
+   * 这一页是给「组件风格识别」这条线做验收用的，每种组件只摆一种写法，
+   * 这样插件报出来的参数和页面上看到的能一一对上。
+   *
+   * 页面上真实存在的组件，一共五条：
+   *   导航栏   1 个   白底，只有一条底边线
+   *   主按钮   1 个   #3d5afe 实心，无描边，圆角 8
+   *   次按钮   1 个   白底加 1px #d0d0d0 描边，圆角 8
+   *   输入框   1 个   1px #d8d8d4 四边描边，圆角 6
+   *   卡片     2 个   白底，圆角 12，内边距 24，带投影
+   *
+   * 页面上不存在的组件：没有幽灵按钮、没有选中态、没有下拉框。
+   * 结果里也就不该出现它们。这一条是「不编造」的验收点。
+   *
+   * 另外这一页的卡片带投影，顺带可以对照 B5 那条线的投影提取结果：
+   * 应当报出一组 0px 4px 12px 0px 的投影。
+   *
+   * 建议在窗口宽度 1440 以上打开，窄窗口下卡片网格会挤成一列。
+   */
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    /* 页面底色用浅灰而不是纯白，这样白底卡片和次按钮能靠底色差别看出来 */
+    background: #f6f6f4;
+    color: #1f1f1c;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .center { display: flex; justify-content: center; }
+
+  .shell {
+    width: 100%;
+    max-width: 1080px;
+    padding: 0 24px;
+  }
+
+  /* ---------- 导航栏：唯一的导航容器 ----------
+     内边距写在这个 nav 元素自己身上。写在里面的容器上虽然视觉一样，
+     但插件读的是元素自身的计算样式，那样会读到 0。 */
+  nav.top {
+    background: #ffffff;
+    border-bottom: 1px solid #e8e8e6;
+    height: 64px;
+    padding: 0 24px;
+  }
+
+  .top-inner {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    height: 100%;
+  }
+
+  /* 导航链接不加内边距，这样它们不会被当成按钮形态。
+     想让它们变成按钮形态的话，给 a 加上 padding: 8px 12px 即可，
+     那时结果里会多出一条「幽灵按钮」并且注明它们其实在导航栏内。 */
+  .top-inner a {
+    color: #4a4a46;
+    text-decoration: none;
+  }
+
+  .top-inner .brand {
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  /* ---------- 内容区 ---------- */
+  .content { padding: 48px 0 64px; }
+
+  h1 { font-size: 36px; line-height: 44px; margin: 0 0 16px; }
+  h2 { font-size: 24px; line-height: 32px; margin: 0 0 16px; }
+  h3 { font-size: 18px; line-height: 26px; margin: 0 0 8px; }
+  p  { margin: 0 0 24px; color: #4a4a46; }
+
+  section + section { margin-top: 48px; }
+
+  /* ---------- 按钮：主按钮实心无描边，次按钮白底加描边 ----------
+     两者的区别只有「填充和页面底色像不像」和「有没有看得见的描边」
+     这两件事。底色 #3d5afe 和页面底 #f6f6f4 差得远，所以是主按钮；
+     白色和 #f6f6f4 几乎一样，所以是次按钮。 */
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  button {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  button.primary {
+    background: #3d5afe;
+    color: #ffffff;
+    border: 0;
+  }
+
+  button.secondary {
+    background: #ffffff;
+    color: #1f1f1c;
+    border: 1px solid #d0d0d0;
+  }
+
+  /* ---------- 输入框：四边描边，圆角比按钮小一档 ---------- */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 420px;
+  }
+
+  .field input {
+    padding: 9px 14px;
+    border: 1px solid #d8d8d4;
+    border-radius: 6px;
+    font-size: 15px;
+    font-family: inherit;
+    background: #ffffff;
+    color: #1f1f1c;
+  }
+
+  /* ---------- 卡片：白底加投影，圆角 12 ----------
+     和导航栏的区别在于它排在一行里，没有撑满父容器，所以算卡片；
+     导航栏撑满整行，算版面容器，不会被报成卡片。 */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .card {
+    padding: 24px;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .card p { margin: 0; }
+
+  /* ---------- 对照表 ----------
+     刻意不加投影、圆角和底色。这一页上带投影的只有那两张卡片，
+     对照表如果也带投影，投影那一组就会混进表格，读起来要多绕一步。 */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1px solid #eeeee9;
+    font-size: 14px;
+  }
+
+  th { background: #fafaf8; font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+
+  td span {
+    font-size: 11px;
+    color: #8a8a84;
+  }
+
+  .foot-note {
+    margin: 12px 0 0;
+    font-size: 13px;
+    color: #6b6a64;
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="top-inner">
+    <span class="brand">Acme</span>
+    <a href="#">产品</a>
+    <a href="#">定价</a>
+    <a href="#">文档</a>
+    <a href="#">关于</a>
+  </div>
+</nav>
+
+<div class="center">
+  <div class="shell">
+    <div class="content">
+
+      <section>
+        <h1>组件风格验收样本</h1>
+        <p>这一页每种组件只摆一种写法，插件报出来的参数应当能和下面这张对照表逐项对上。
+        页面上没有的组件类型（幽灵按钮、下拉框、标签页）在结果里也不该出现。</p>
+      </section>
+
+      <section>
+        <h2>动作按钮</h2>
+        <p>左边是主按钮，实心 #3d5afe、无描边。右边是次按钮，白底加一圈 #d0d0d0 的描边。
+        两者圆角都是 8，内边距都是左右 18、上下 10。</p>
+        <div class="actions">
+          <button class="primary">开始使用</button>
+          <button class="secondary">查看文档</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>输入</h2>
+        <p>四边都有 1px 的 #d8d8d4 描边，圆角 6，内边距左右 14、上下 9，字号 15。</p>
+        <div class="field">
+          <label>工作邮箱</label>
+          <input type="email" placeholder="you@example.com">
+        </div>
+      </section>
+
+      <section>
+        <h2>卡片</h2>
+        <p>两张卡片的参数完全一样：白底、圆角 12、内边距 24、投影 0 4 12 rgba(0,0,0,.06)。
+        它们排在一行里、没有撑满父容器，所以会被算成卡片；导航栏撑满整行，不会被算成卡片。</p>
+        <div class="cards">
+          <div class="card">
+            <h3>第一张</h3>
+            <p>卡片的投影和底色一起把它从页面底上分出来，两者缺一不可。</p>
+          </div>
+          <div class="card">
+            <h3>第二张</h3>
+            <p>同一页上的卡片参数应当完全一致，不一致就说明有层级问题。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>对照表</h2>
+        <p>下面就是插件应当报出来的结果。任何一项对不上，都说明识别或者取值有问题。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>组件</th><th>个数</th><th>背景色</th><th>文字色</th><th>圆角</th><th>内边距</th><th>字号</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>主按钮</td><td>1</td><td>#3d5afe</td><td>#ffffff</td><td>8px</td><td>18 × 10</td><td>16</td></tr>
+            <tr><td>次按钮</td><td>1</td><td>#ffffff</td><td>#1f1f1c</td><td>8px</td><td>18 × 10</td><td>16</td></tr>
+            <tr><td>输入框</td><td>1</td><td>#ffffff</td><td>#1f1f1c</td><td>6px</td><td>14 × 9</td><td>15</td></tr>
+            <tr><td>导航栏</td><td>1</td><td>#ffffff</td><td>#1f1f1c<span>（继承）</span></td><td>0</td><td>24 × 0</td><td>16</td></tr>
+            <tr><td>卡片</td><td>2</td><td>#ffffff</td><td>#1f1f1c<span>（继承）</span></td><td>12px</td><td>24 × 24</td><td>16</td></tr>
+          </tbody>
+        </table>
+        <p class="foot-note">
+          导航栏和卡片是容器，自己不带文字，所以它们的文字色是按继承规则算出来的，
+          也就是里面的文字最终会显示成什么颜色。它不是导航链接的颜色（这里是 #4a4a46），
+          插件的结果里也会专门写一句说明这一点。
+        </p>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

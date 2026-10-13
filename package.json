@@ -1,0 +1,43 @@
+{
+  "name": "design-md-extractor",
+  "private": true,
+  "version": "0.1.0",
+  "description": "从任意网页提取视觉风格，生成符合 Google DESIGN.md 规范的设计系统文件",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build && npm run check:injection",
+    "zip": "wxt zip",
+    "prepare": "wxt prepare",
+    "compile": "wxt prepare && tsc --noEmit",
+    "check:color": "jiti scripts/color-check.ts",
+    "check:typography": "jiti scripts/typography-check.ts",
+    "check:spacing": "jiti scripts/spacing-check.ts",
+    "check:effects": "jiti scripts/effects-check.ts",
+    "check:components": "jiti scripts/components-check.ts",
+    "check:background": "jiti scripts/background-check.ts",
+    "check:export": "jiti scripts/export-check.ts",
+    "check:provenance": "jiti scripts/provenance-check.ts",
+    "check:design-md": "jiti scripts/design-md-check.ts",
+    "check:semantics": "jiti scripts/semantics-check.ts",
+    "check:llm": "jiti scripts/llm-check.ts",
+    "check:notice": "jiti scripts/notice-check.ts",
+    "sample:design-md": "jiti scripts/design-md-sample.ts",
+    "check:diagnose": "jiti scripts/diagnose-check.ts",
+    "check:frame": "node scripts/frame-check.mjs",
+    "check:injection": "node scripts/verify-injection.mjs",
+    "check:entry": "node scripts/entry-check.mjs",
+    "check:e2e": "node scripts/e2e-check.mjs",
+    "check:highlight": "node scripts/highlight-shot.mjs",
+    "report": "node scripts/report.mjs",
+    "check": "npm run check:diagnose && npm run check:color && npm run check:typography && npm run check:spacing && npm run check:effects && npm run check:components && npm run check:background && npm run check:export && npm run check:provenance && npm run check:design-md && npm run check:semantics && npm run check:llm && npm run check:notice && npm run check:frame && npm run compile"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@types/chrome": "^0.3.5",
+    "jiti": "^2.7.0",
+    "jsdom": "^30.1.2",
+    "typescript": "^7.0.2",
+    "wxt": "^0.21.4"
+  }
+}

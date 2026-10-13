@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 · S3 只有渐变与图片背景</title>
+<style>
+  /*
+   * 这一页压的是「背景不靠纯色承载」这条边界。
+   *
+   * 采集层对渐变和背景图只记「有没有、几处、什么类型」，不把它们的颜色
+   * 算进色板，因为渐变的色标位置可能整个落在元素框外，背景图的颜色也
+   * 不在样式系统里。所以从声明值推导不出「用户实际看到的是什么颜色」。
+   *
+   * 一整页都长这样的时候，色板会显得很空，用户容易以为工具坏了。
+   * 这一页就是来确认：结果里有一句解释，而不是一个没有说法的空色板。
+   *
+   * 期望：
+   *     · 正常出结果，不报错
+   *     · 背景那一节应当说明本页主要靠渐变或背景图承载，色板不代表真实观感
+   *     · 页面底色很可能报成白色。这是诚实的局限：整页只有渐变，
+   *       没有一处声明纯色背景，取值只能沿祖先链兜底到浏览器画布色。
+   *       看到白色不算错，看到「没有解释」才算错
+   *     · 色板条目应当很少（这一页只有零星几处纯色：文字和那一枚强调色小胶囊）
+   *     · 那枚强调色 #22d3ee 应当出现在色板里，它是全页唯一一个用来承载
+   *       设计意图的纯色
+   *
+   * 渐变、噪声图、占位图各不相同，是故意摆的三种不同写法。
+   */
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    /* 整页底色是一个渐变，没有 background-color */
+    background: linear-gradient(160deg, #0f172a 0%, #1e3a8a 55%, #7c3aed 100%);
+    color: #e8ecf4;
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 56px 24px 80px; }
+
+  /* 径向渐变做首屏 */
+  .hero {
+    background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.35), rgba(15, 23, 42, 0) 60%);
+    border-radius: 20px;
+    padding: 48px;
+    margin-bottom: 40px;
+  }
+  .hero h1 { font-size: 40px; line-height: 1.2; margin: 0 0 14px; }
+  .hero p { font-size: 17px; color: #c3cbdb; margin: 0; max-width: 620px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+
+  /* 锥形渐变做装饰块 */
+  .conic {
+    background: conic-gradient(from 210deg, #06b6d4, #8b5cf6, #f472b6, #06b6d4);
+    border-radius: 16px;
+    height: 200px;
+  }
+
+  /* 背景图走 data URI，颜色完全不在样式系统里 */
+  .texture {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23111827'/%3E%3Ccircle cx='12' cy='12' r='2' fill='%23f59e0b'/%3E%3C/svg%3E");
+    background-size: 24px 24px;
+    border-radius: 16px;
+    height: 200px;
+  }
+
+  /* 全页唯一的纯色强调块 */
+  .chip {
+    display: inline-block;
+    background: #22d3ee;
+    color: #062e35;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 24px;
+  }
+
+  .foot { margin-top: 40px; font-size: 14px; color: #aab4c6; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <span class="chip">全页唯一纯色</span>
+
+  <div class="hero">
+    <h1>背景全部由渐变承担</h1>
+    <p>这一页里没有任何一处声明纯色背景。首屏用径向渐变，下面的两块分别用锥形渐变和一张
+    以 data URI 内联的背景图。文字颜色倒是纯色，所以色板不会是空的，但它代表的是文字，
+    不是这一页给人的整体观感。</p>
+    <p>采集层对渐变只记「有没有、几处、什么类型」，不把渐变的颜色算进色板。理由是渐变的
+    色标位置可能整个落在元素框外，也可能被后续图层盖住，从声明值推导不出用户实际看到的
+    颜色。背景图更彻底，它的颜色根本不在样式系统里。</p>
+  </div>
+
+  <div class="grid">
+    <div class="conic"></div>
+    <div class="texture"></div>
+  </div>
+
+  <p class="foot">如果结果里只报了白色和文字色，而且一句解释都没有，那就说明「背景不是纯色」
+  这件事没有被说出来，复刻的人会照着白底去搭。这一页的作用就是把这种情况挡在交付之前。</p>
+
+  <p class="foot">要核对的两个数：结果里应当能看出本页使用了渐变背景，并且能看出至少一处
+  以图片作背景的元素。这两个数对不上，说明背景那一段的判断漏了本页的主要承载方式。</p>
+
+</div>
+</body>
+</html>

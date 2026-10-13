@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 验收 · 一键提取当前页面</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --border: #e2e0da;
+    --border-strong: #cbc8bf;
+    --text: #1f1f1c;
+    --muted: #6b6a64;
+    --faint: #918f88;
+    --accent: #3d5afe;
+    --ok: #2f7d4f;
+    --ok-bg: #f0f8f2;
+    --ok-border: #bfdcc7;
+    --bad: #a3352a;
+    --bad-bg: #fdf3f2;
+    --bad-border: #f0ccc7;
+    --warn-bg: #fff8e6;
+    --warn-border: #ecd9a4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 24px 220px;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.65 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 22px; font-size: 13px; }
+
+  .criteria { margin: 0 0 22px; padding: 0; list-style: none; }
+  .criteria li { padding: 7px 0 7px 26px; position: relative; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .criteria li:last-child { border-bottom: 0; }
+  .criteria li::before { content: "○"; position: absolute; left: 6px; color: var(--accent); }
+
+  .banner {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+    font-size: 13px;
+    line-height: 1.75;
+  }
+  .banner strong { color: #7a5a12; }
+  .banner ol { margin: 8px 0 0; padding-left: 22px; }
+  .banner li { margin-bottom: 4px; }
+
+  h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+    margin: 34px 0 10px;
+    font-weight: 600;
+  }
+  h2 .n { color: var(--accent); margin-right: 6px; }
+
+  .case {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: start;
+  }
+  .case.pass { border-color: var(--ok-border); background: var(--ok-bg); }
+  .case.fail { border-color: var(--bad-border); background: var(--bad-bg); }
+
+  .case-main { min-width: 0; }
+  .case-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    background: #eef0ff;
+    border-radius: 5px;
+    padding: 1px 6px;
+    flex: none;
+  }
+  .case-title { font-weight: 600; font-size: 14px; }
+  .focus { font-size: 12px; color: var(--faint); }
+
+  .row { display: flex; align-items: center; gap: 6px; margin-top: 9px; min-width: 0; flex-wrap: wrap; }
+  .row-label { color: var(--faint); font-size: 12px; flex: none; width: 52px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    background: #f2f1ed;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 7px;
+    overflow-wrap: anywhere;
+  }
+  a.open {
+    font-size: 12px;
+    text-decoration: none;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 6px;
+    padding: 3px 10px;
+    flex: none;
+    background: #fff;
+  }
+  a.open:hover { background: #eef0ff; }
+  .copy {
+    font-size: 11px;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 2px 8px;
+    cursor: pointer;
+    flex: none;
+    font-family: inherit;
+  }
+  .copy:hover { color: var(--text); border-color: var(--text); }
+
+  .expect {
+    margin-top: 9px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .expect b { color: var(--text); font-weight: 600; }
+  ul.expect { margin: 9px 0 0; padding-left: 22px; font-size: 13px; color: var(--muted); line-height: 1.65; }
+  ul.expect li { margin-bottom: 4px; }
+  .expect ul { margin: 6px 0 0; padding-left: 20px; }
+  .expect li { margin-bottom: 3px; }
+  .watch {
+    margin-top: 7px;
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: var(--bad-bg);
+    border: 1px solid var(--bad-border);
+    color: #7a4b43;
+    line-height: 1.6;
+  }
+  .verified {
+    margin-top: 7px;
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: #f4f7ff;
+    border: 1px solid #d5ddf5;
+    color: #42506e;
+    line-height: 1.6;
+  }
+
+  .verdict { display: flex; gap: 6px; flex: none; }
+  .verdict label {
+    cursor: pointer;
+    font-size: 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+    padding: 5px 11px;
+    background: #fff;
+    color: var(--muted);
+    user-select: none;
+    white-space: nowrap;
+  }
+  .verdict input { display: none; }
+  .verdict input:checked + span { font-weight: 600; }
+  .verdict .ok:has(input:checked) { border-color: var(--ok); color: var(--ok); }
+  .verdict .bad:has(input:checked) { border-color: var(--bad); color: var(--bad); }
+
+  .note {
+    margin-top: 10px;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 9px;
+    font: inherit;
+    font-size: 12px;
+    resize: vertical;
+    min-height: 34px;
+    background: #fff;
+    color: var(--text);
+  }
+  .note:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+
+  .dock {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border-strong);
+    padding: 12px 24px;
+  }
+  .dock-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .tally { font-size: 13px; color: var(--muted); }
+  .tally b { color: var(--text); }
+  .tally .n-ok { color: var(--ok); }
+  .tally .n-bad { color: var(--bad); }
+  .grow { flex: 1; }
+  button.act {
+    font: inherit;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.act.primary { background: #1f1f1c; color: #fff; border-color: #1f1f1c; }
+  button.act:hover { opacity: 0.85; }
+  #out {
+    width: 100%;
+    margin-top: 10px;
+    height: 110px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    resize: vertical;
+    display: none;
+    background: #fff;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>B1 验收 · 一键提取当前页面</h1>
+  <p class="sub">在任意页面点一下插件图标，右侧会开出面板并显示结果。这一页是这张验收单，样例页在同一个目录里。</p>
+
+  <ul class="criteria">
+    <li><b>标准一</b>　在所有样例站点上都能正常启动提取并展示结果，不报错</li>
+    <li><b>标准二</b>　提取过程不改变原页面的外观和功能</li>
+    <li><b>标准三</b>　在插件无法运行的页面上给出友好提示</li>
+  </ul>
+
+  <div class="banner">
+    <strong>动手之前先做四件事。</strong>
+    <ol>
+      <li>打开 <code>chrome://extensions</code>，找到 DESIGN.md Extractor，点卡片上的刷新图标，确认没有任何红色报错。</li>
+      <li>把扩展图标固定到工具栏。点地址栏右侧的拼图图标，找到它，点旁边的图钉。</li>
+      <li>这一页和所有样例页都是本地文件。需要在扩展详情页里打开「允许访问文件网址」，否则会看到一张提示页。没打开时提示页上有个按钮可以直接跳过去。</li>
+      <li>把窗口拉宽到 1440 上下。全部数值都是当前视口下的渲染计算值，窄窗口下响应式页面会换一套值，对不上是正常的。</li>
+    </ol>
+    <strong>样例页一律用新标签页打开</strong>，这样这张验收单还在，勾选不用来回切。
+  </div>
+
+  <div class="banner">
+    <strong>界面从弹窗换成了侧边栏（2026-10-13 起），走法有三点不同。</strong>
+    <ol>
+      <li>点图标之后结果出现在<b>右侧面板</b>里，不再是弹窗。面板不挡页面，也不随点击消失。</li>
+      <li>面板收起来再打开，<b>上一次的结果还在</b>，不用重新提取。但换到别的标签页想看那一页的风格，
+      要再点一次图标。</li>
+      <li>面板里<b>没有提取按钮</b>。这是 Chrome 的权限模型决定的，不是漏了：读取当前页的授权
+      只在点图标那一刻给出，在面板里点按钮拿不到它。所以提示页上那个「重新提取」按钮也没有了，
+      取而代之的是一句「点一下工具栏上的插件图标可以重试」。</li>
+    </ol>
+  </div>
+
+  <h2><span class="n">零</span>前置检查</h2>
+
+  <section class="case" data-id="P0" data-name="扩展加载状态" data-expect="卡片无红色错误提示">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">P0</span><span class="case-title">扩展加载状态</span></div>
+      <div class="row">
+        <span class="row-label">地址</span>
+        <code>chrome://extensions</code>
+        <button class="copy" data-copy="chrome://extensions">复制</button>
+      </div>
+      <p class="expect">卡片上写着 DESIGN.md Extractor、版本 0.1.0，<b>没有任何红色报错文字</b>，右上角开发者模式是打开的。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="P0" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="P0" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="P1" data-name="本地文件读权限" data-expect="样例页能正常提取">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">P1</span><span class="case-title">本地文件读权限</span></div>
+      <p class="expect">随便打开一个样例页，点扩展图标。能出结果就跳过这一条；如果给的是一张「这是本地文件」的提示页，
+      按提示页上的按钮跳到设置，打开「允许访问文件网址」，刷新样例页再点一次。</p>
+      <div class="verified">这一项只影响本地文件，不影响普通网站。扩展的 manifest 里已经声明了 file 模式，
+      所以那个开关一定出现在详情页上。</div>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="P1" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="P1" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <h2><span class="n">一</span>标准一 · 样例站点能正常提取，不报错</h2>
+
+  <section class="case" data-id="S1" data-name="典型站点" data-expect="6 条颜色角色、7 级字号、4 类组件，无提示">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S1</span><span class="case-title">典型站点</span><span class="focus">正常路径的基线</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s1-typical.html</code>
+        <a class="open" href="s1-typical.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">一个正常的产品落地页。点图标应当正常出结果，没有任何错误提示、没有「页面过大」、没有覆盖范围警示。
+      具体应当看到：</p>
+      <ul class="expect">
+        <li>颜色角色 <b>6 条</b>，其中有页面底色 <b>#f5f6f8</b> 和品牌蓝 <b>#2563eb</b></li>
+        <li>字号 <b>7 级</b>，最大一级 44px</li>
+        <li>组件 <b>4 类</b>，分别是主按钮 2 个、次按钮 1 个、输入框 3 个、导航栏 1 个、卡片 3 个</li>
+      </ul>
+      <p class="watch"><b>这一条如果就挂了，后面的边界页不必看。</b>它是最普通的一页，跑不通说明主干有问题。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S1" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S1" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S2" data-name="无样式页" data-expect="能出结果，色板很少，含默认链接蓝">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S2</span><span class="case-title">无样式页</span><span class="focus">信息量最低的一端</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s2-bare.html</code>
+        <a class="open" href="s2-bare.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">整页不写一行 CSS，全用浏览器默认样式。期望：</p>
+      <ul class="expect">
+        <li>正常出结果，<b>不报错</b>，也不出现覆盖范围警示</li>
+        <li>页面底色是 <b>白色</b></li>
+        <li>色板里应当有浏览器默认的链接蓝 <b>#0000ee</b></li>
+        <li>字号只剩默认那几档（32 / 24 / 16 / 13）</li>
+      </ul>
+      <p class="watch">反向的验收点在这里：结果里如果冒出这一页根本不存在的颜色或字号，说明有地方在凭空造数，
+      那比缺东西严重得多。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S2" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S2" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S3" data-name="只有渐变与图片背景" data-expect="说明背景不是纯色，不报错">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S3</span><span class="case-title">只有渐变与图片背景</span><span class="focus">背景通道退化</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s3-gradient.html</code>
+        <a class="open" href="s3-gradient.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">整页没有一处纯色背景，全靠渐变和一张内联背景图。期望：</p>
+      <ul class="expect">
+        <li>正常出结果，不报错</li>
+        <li>背景那一节应当说明本页使用了<b>渐变背景</b>（3 处）与<b>图片背景</b>（1 处）</li>
+        <li>色板条目很少，其中有全页唯一的纯色强调块 <b>#22d3ee</b></li>
+        <li><b>页面底色会报成白色。</b>这是诚实的局限：整页没有一处声明纯色背景，
+        取值只能沿祖先链兜底到浏览器画布色。看到白色不算错，看到「没有解释」才算错</li>
+      </ul>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S3" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S3" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S4" data-name="声明写法边界" data-expect="七种写法归成一个颜色，不报错">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S4</span><span class="case-title">声明写法边界</span><span class="focus">颜色与单位的写法</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s4-syntax.html</code>
+        <a class="open" href="s4-syntax.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">同一个蓝色用七种写法写（三位缩写、八位、rgb 空格与斜杠、逗号、hsl），另外还有具名色、
+      变量、简写、单边、<code>!important</code>、内联覆盖、相对单位。期望：</p>
+      <ul class="expect">
+        <li>正常出结果，不报错</li>
+        <li>那个蓝在结果里只占<b>一条</b>颜色角色。变成两条以上，说明某种写法被算成了别的颜色</li>
+        <li>具名色 rebeccapurple 与 deepskyblue 都按实际十六进制统计，不是把关键字原样带出来</li>
+        <li><code>currentColor</code> 那个方块按它实际渲染的紫色统计</li>
+        <li>引用不存在变量的那一段，落到缺省值 <b>#f97316</b></li>
+      </ul>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S4" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S4" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S5" data-name="可见性过滤" data-expect="A 组八色都不出现，B 组两色出现，正文 16">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S5</span><span class="case-title">可见性过滤</span><span class="focus">哪些不该被算进去</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s5-visibility.html</code>
+        <a class="open" href="s5-visibility.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">页面分三组。<b>A 组</b>是八种不可见的写法，各自一个全页唯一的颜色；<b>B 组</b>是两个正常可见的对照；
+      <b>C 组</b>是三条如实记录的边界，不参与判定。期望：</p>
+      <ul class="expect">
+        <li>A 组的八个颜色<b>一个都不出现</b></li>
+        <li>B 组的蓝色 <b>#2563eb</b> 与橙色 <b>#ea580c</b> <b>都出现</b>（没有这个对照，
+        「全都没出现」也可能只是因为整页采空了）</li>
+        <li>正文是 <b>16px</b>。A 组里那一大片 12px 小字一旦被采进去，正文会被拽成 12px</li>
+      </ul>
+      <p class="verified">A 组里最值得盯的是收起的折叠区那一条。Chrome 对收起的 <code>&lt;details&gt;</code> 仍然会排版，
+      它的尺寸是真的，<code>display</code>、<code>visibility</code>、<code>opacity</code> 全是正常值，
+      只有可见性判据认得出它不可见。真实页面上对应折叠面板、抽屉、收起的菜单，里面往往是大段说明文字。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S5" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S5" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S6" data-name="结构边界：框架、影子树、画布" data-expect="srcdoc 框架读入，影子树与画布读不到，有 PDF 说明">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S6</span><span class="case-title">结构边界</span><span class="focus">内容不在主文档树里</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s6-structure.html</code>
+        <a class="open" href="s6-structure.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">同一条边界上有四种情况，可读性完全不一样。期望：</p>
+      <ul class="expect">
+        <li>主文档里的对照青 <b>#0891b2</b> 出现</li>
+        <li>srcdoc 框架（同源）里的柠檬绿 <b>#a3e635</b> <b>应当出现</b>，说明同源框架的内容被一并读了进来</li>
+        <li>影子树里的紫 <b>#8b5cf6</b> <b>不该出现</b>。这是一个已知缺口，当前实现没有任何提示，
+        用组件库搭的页面会有整片内容静默缺失</li>
+        <li>画布上的红 <b>#ff0000</b> 与内联 SVG 的绿 <b>#22c55e</b> <b>都不该出现</b>，这是设计如此</li>
+        <li>出现一句 <b>PDF 覆盖范围说明</b>，指出内嵌的那处 PDF 不在色板覆盖范围内</li>
+      </ul>
+      <p class="watch">同目录下的那个本地文件框架是个观察点。<b>两种打开方式结果不同</b>：用 <code>file://</code> 直接打开时
+      Chrome 把每个本地文件当成独立来源，读不到；用 http 起本地服务器打开时属于同源，能读。两种都接受，但要知道自己看到的是哪一种。
+      跨域框架那一条需要联网，不联网时框架是空的，结论一样是读不到。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S6" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S6" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S7" data-name="提取不改变原页面" data-expect="自检表全绿，不报错">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S7</span><span class="case-title">提取不改变原页面（自检页）</span><span class="focus">标准二的载体</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s7-interactive.html</code>
+        <a class="open" href="s7-interactive.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">这一页自带一个自检按钮，把「有没有被改动」变成几个数。按页面上写的顺序走：先改点状态，
+      点「记下基线」，点插件提取，回来点「自检并比对」，表格每一项都应当是<b>绿色的一致</b>。
+      比对的是 DOM 元素数、带 style 属性的元素数、滚动位置、计数器、输入框内容、静默区被改动次数、三个关键元素的位置与尺寸。</p>
+      <p class="verified">这一条在自动检查里已经用真实浏览器验过一遍：八个样例页在采集前后，
+      DOM 节点数、带 <code>style</code> 属性的元素数、<code>body</code> 与 <code>html</code> 上的 style 属性全部逐字节相同。
+      人工走这一遍是为了确认脚本没覆盖到的部分，比如面板开关之后页面的交互状态。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S7" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S7" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S8" data-name="极端形态与体量" data-expect="不报错，出现「页面过大」提示">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S8</span><span class="case-title">极端形态与体量</span><span class="focus">量最大的一端</span></div>
+      <div class="row">
+        <span class="row-label">样例</span>
+        <code>s8-extremes.html</code>
+        <a class="open" href="s8-extremes.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">页面上有九千多个元素，还有四百层嵌套、120px 与 9px 的字号两端、横向溢出的宽元素、
+      从右往左的段落、emoji 与组合字符。期望：</p>
+      <ul class="expect">
+        <li>正常出结果，<b>不报错、不卡死</b></li>
+        <li>统计行里出现一句 <b>「页面过大，只采集了前 8000 个元素」</b>。
+        静默截断是最坏的做法，用户会拿一份残缺的色板当完整的用</li>
+        <li>上面那些常规的卡片和按钮仍然被认出来，极端形态没有把常规识别带崩</li>
+      </ul>
+      <p class="watch">两个需要留意的观察点。一是这一页的 JSON 导出有 <b>8 MB 上下</b>，下载会明显慢一下，
+      属于已知体量问题。二是这一页声明了 <code>color-scheme</code>，把系统切到深色再采一次，底色基准会跟着换，
+      这是另一条验收线（页面底色）的事，这里只看<b>换环境之后仍然不报错</b>。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S8" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S8" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="S9" data-name="真实站点泛化" data-expect="五个真实站点都能出结果">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">S9</span><span class="case-title">真实站点泛化</span><span class="focus">不只在自己的样例上通</span></div>
+      <p class="expect">上面的样例都是我们自己写的，容易「刚好都长得像工具认识的样子」。再拿几个真实站点各点一次图标，
+      只要<b>都能出结果、不报错</b>就算过，具体数字对不对是后面几条验收线的事。</p>
+      <ul class="expect">
+        <li><code>https://example.com</code> 最简的一页，反向对照，必须能跑通</li>
+        <li><code>https://tailwindcss.com</code> 组件密集、字号层级多</li>
+        <li><code>https://linear.app</code> 深色主题、响应式断点跳变</li>
+        <li><code>https://developer.mozilla.org</code> 文档站，长篇正文与侧栏</li>
+        <li><code>https://github.com</code> 组件与表单极多，元素量大</li>
+      </ul>
+      <p class="watch">如果只有自己的样例通、真实站点一条都报错，说明前面的「不报错」是靠样例挑得巧，
+      而不是真的稳。这一条是专门挡这种情况的。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="S9" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="S9" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <h2><span class="n">二</span>标准二 · 提取不改变原页面的外观和功能</h2>
+
+  <section class="case" data-id="V1" data-name="外观不变" data-expect="提取前后看起来一样">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">V1</span><span class="case-title">外观不变</span></div>
+      <p class="expect">在 S1 上截一张图，点图标提取，收起面板，再截一张。<b>两张应当完全一样</b>，
+      不该出现位移、跳动、多出来的描边或底色。高亮那条验收线会主动往页面上画描边，
+      但那是用户点了 token 之后才有的事，单纯提取不该在页面上留下任何东西。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="V1" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="V1" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="V2" data-name="功能不变" data-expect="按钮还能点，输入还在，动画还在动">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">V2</span><span class="case-title">功能不变</span></div>
+      <p class="expect">在 S7 上先把状态改掉（点几下加号、输入几个字、选好下拉项），提取之后再操作一遍。
+      <b>按钮还能点、计数器接着走、输入框内容还在、折叠区还能展开、那个方块还在动</b>。
+      页面上原有的事件没有被打断或吞掉。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="V2" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="V2" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="V3" data-name="滚动与焦点" data-expect="滚动位置不变">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">V3</span><span class="case-title">滚动与焦点</span></div>
+      <p class="expect">在一个长页面上（S7 或 S8，也可以拿 MDN 那种长文档），先滚到页面中间，
+      提取之后再回来。<b>滚动位置不该被重置到顶部</b>，输入焦点也不该被抢走。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="V3" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="V3" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="V4" data-name="控制台无报错" data-expect="两边都没有红色报错">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">V4</span><span class="case-title">控制台无报错</span></div>
+      <p class="expect">在样例页上打开 DevTools 控制台，先看一遍基线，再点图标提取，再看一遍。
+      <b>两边都不该多出红色报错。</b>有报错就说明注入在页面上留下了痕迹，哪怕是没被看见的那部分。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="V4" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="V4" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <h2><span class="n">三</span>标准三 · 无法运行的页面给友好提示</h2>
+
+  <section class="case" data-id="U0" data-name="主清单（十二个用例）" data-expect="在那张页面上逐条勾选">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U0</span><span class="case-title">主清单，共十二个用例</span><span class="focus">这一条不在这里勾</span></div>
+      <div class="row">
+        <span class="row-label">页面</span>
+        <code>../acceptance-b1.html</code>
+        <a class="open" href="../acceptance-b1.html" target="_blank" rel="noopener">打开</a>
+      </div>
+      <p class="expect">第三条标准的用例比另外两条多，单独放在那张页面上，一共十二条，涵盖六种浏览器内部页面、
+      应用商店、本地文件、PDF、打不开的域名，以及两个对照。那边的页面自带勾选和导出，
+      <b>这一条只用来标记「那边走完了没有」</b>，具体哪一条没过写在那边的备注里。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U0" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U0" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U13" data-name="data: 地址" data-expect="给出友好提示">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U13</span><span class="case-title">data: 地址</span></div>
+      <div class="row">
+        <span class="row-label">地址</span>
+        <code>data:text/html,&lt;h1&gt;hi&lt;/h1&gt;</code>
+        <button class="copy" data-copy="data:text/html,<h1>hi</h1>">复制</button>
+      </div>
+      <p class="expect">这一页地址里直接带着内容，没有来源也没有站点，扩展注入不进去。
+      期望给一张<b>友好提示</b>，不能是白屏，也不能把浏览器的原始报错原文摆出来。
+      具体要求是标题说得清「发生了什么」，正文说得清「用户能做什么」，二者缺一不可。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U13" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U13" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U14" data-name="功能开关页" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U14</span><span class="case-title">功能开关页</span></div>
+      <div class="row">
+        <span class="row-label">地址</span>
+        <code>chrome://flags</code>
+        <button class="copy" data-copy="chrome://flags">复制</button>
+      </div>
+      <p class="expect">期望标题是 <b>这是浏览器内部页面</b>，并且<b>不出现「重新提取」按钮</b>。
+      和清单里那六条是同一类，这里只是换一个内部页面再确认一次判断不是只对某几个地址生效。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U14" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U14" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U15" data-name="下载内容页" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U15</span><span class="case-title">下载内容页</span></div>
+      <div class="row">
+        <span class="row-label">地址</span>
+        <code>chrome://downloads</code>
+        <button class="copy" data-copy="chrome://downloads">复制</button>
+      </div>
+      <p class="expect">期望同 U14。这条顺带覆盖一个真实场景：用户下载完文件顺手点一下图标，最该被拦住的就是这里。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U15" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U15" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U16" data-name="另一个扩展的页面" data-expect="给出友好提示，不是原始报错">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U16</span><span class="case-title">另一个扩展的页面</span></div>
+      <div class="row">
+        <span class="row-label">地址</span>
+        <code>chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html</code>
+        <button class="copy" data-copy="chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html">复制</button>
+      </div>
+      <p class="expect">这是 Chrome 内置 PDF 阅读器所在的扩展页面。一个扩展读不了另一个扩展的页面，
+      这是浏览器的隔离规则。<b>期望给一张友好提示，而不是把 <code>Cannot access contents of url</code> 这种原始报错摆出来。</b></p>
+      <p class="watch">这条地址能不能直接打开取决于 Chrome 版本。打不开就跳过，不算未通过，在备注里写一句。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U16" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U16" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <h2><span class="n">四</span>面板形态 · 内容只认当前页，可折叠</h2>
+  <p class="sub">这三条只有真机能验：侧边栏是浏览器自己的界面，脚本点不到。<b>开始之前先在 chrome://extensions 里重载一次扩展</b>，构建会重建整个输出目录，不重载的话点图标同样没反应。</p>
+
+  <section class="case" data-id="M1" data-name="面板只显示属于这一页的结果" data-expect="没点过的页面上图标仍可点；切页后面板内容跟着换">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">M1</span><span class="case-title">面板只显示属于这一页的结果</span><span class="focus">作用域</span></div>
+      <p class="expect">在样例页上点图标出结果，然后做三件事。<b>一</b>，切到一个<b>从没点过插件的标签页</b>，在那里点一次图标：<b>图标必须能点、面板必须打开</b>。这一条是回归验证，之前有一版图标会变灰点不动，整套功能静默失效。<b>二</b>，看那个页面上的面板，内容应当是「还没有提取过」，而不是继续显示样例页的数字。<b>三</b>，切回样例页，面板内容应当变回样例页的结果。</p>
+      <p class="watch">面板本身不会跟着页面消失。这是 Chrome 的二选一：要让侧边栏在某页不存在，唯一机制是禁用该页的侧边栏，而禁用会让那一页的插件图标一起变灰、点不动。两个要求互斥，这里保住的是「任何页面都能点图标开始提取」。第一条如果过不了，说明又退回了那个禁用写法。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="M1" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="M1" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="M2" data-name="折叠成窄条与展开" data-expect="头部三角折叠成窄栏，窄栏三角展开，状态跨重建记得住">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">M2</span><span class="case-title">折叠成窄条与展开</span><span class="focus">面板内折叠</span></div>
+      <p class="expect">点头部那个<b>小三角</b>，面板内容应当收成左侧一条 44px 的窄栏，栏上有一个反向三角和竖排的页面名；点窄栏上的三角，应当展开回完整界面。<b>折叠之后切到别的标签页再切回来</b>，面板重建之后应当还是窄栏，不是又弹成一整屏。</p>
+      <p class="watch">面板本身的宽不会变，Chrome 不给扩展控制宽度的接口，所以窄栏右边会留一片空白，那不是 bug 是 Chrome 的地板。要连面板一起收走，用下一个用例的关闭按钮。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="M2" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="M2" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="M3" data-name="关闭面板" data-expect="整个面板消失，宽度全部还给页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">M3</span><span class="case-title">关闭面板</span><span class="focus">和折叠是两回事</span></div>
+      <p class="expect">点头部的 <b>✕</b>，整个面板应当消失，页面占回原来那 320px。之后想再看结果，再点一次插件图标即可，上一次的结果会直接显示出来，不用重新等采集。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="M3" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="M3" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+</div>
+
+<div class="dock">
+  <div class="dock-inner">
+    <span class="tally" id="tally"></span>
+    <span class="grow"></span>
+    <button class="act" id="reset">清空</button>
+    <button class="act primary" id="export">生成结果文本</button>
+  </div>
+  <textarea id="out" readonly placeholder=""></textarea>
+</div>
+
+<script>
+(function () {
+  var cases = Array.prototype.slice.call(document.querySelectorAll('.case'));
+  var out = document.getElementById('out');
+
+  function verdictOf(id) {
+    var checked = document.querySelector('input[name="' + id + '"]:checked');
+    return checked ? checked.value : '未测';
+  }
+
+  function paint() {
+    var ok = 0, bad = 0, todo = 0;
+    cases.forEach(function (c) {
+      var v = verdictOf(c.dataset.id);
+      c.classList.toggle('pass', v === '通过');
+      c.classList.toggle('fail', v === '不通过');
+      if (v === '通过') ok++;
+      else if (v === '不通过') bad++;
+      else todo++;
+    });
+    document.getElementById('tally').innerHTML =
+      '共 <b>' + cases.length + '</b> 条　' +
+      '<span class="n-ok">通过 <b>' + ok + '</b></span>　' +
+      '<span class="n-bad">不通过 <b>' + bad + '</b></span>　' +
+      '未测 <b>' + todo + '</b>';
+  }
+
+  document.addEventListener('change', paint);
+
+  cases.forEach(function (c) {
+    var note = c.querySelector('.note');
+    if (note) note.addEventListener('input', paint);
+  });
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.copy');
+    if (!btn) return;
+    var text = btn.dataset.copy;
+    var done = function () {
+      var old = btn.textContent;
+      btn.textContent = '已复制';
+      setTimeout(function () { btn.textContent = old; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  });
+
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (err) { window.prompt('手动复制', text); }
+    document.body.removeChild(ta);
+  }
+
+  document.getElementById('reset').addEventListener('click', function () {
+    document.querySelectorAll('input[type=radio]').forEach(function (r) { r.checked = false; });
+    document.querySelectorAll('.note').forEach(function (n) { n.value = ''; });
+    out.value = '';
+    out.style.display = 'none';
+    paint();
+  });
+
+  document.getElementById('export').addEventListener('click', function () {
+    var now = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var stamp = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) +
+      ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+    var lines = [];
+    lines.push('B1 验收记录 · 一键提取当前页面');
+    lines.push('时间：' + stamp);
+    lines.push('页面：' + location.href);
+    lines.push('');
+
+    cases.forEach(function (c) {
+      var v = verdictOf(c.dataset.id);
+      lines.push(c.dataset.id + '  ' + c.dataset.name + '　【' + v + '】　期望：' + c.dataset.expect);
+      var note = c.querySelector('.note');
+      if (note && note.value.trim()) lines.push('      备注：' + note.value.trim());
+    });
+
+    var bad = cases.filter(function (c) { return verdictOf(c.dataset.id) === '不通过'; });
+    lines.push('');
+    lines.push(bad.length === 0
+      ? '结论：全部通过'
+      : '结论：' + bad.length + ' 条不通过，编号 ' + bad.map(function (c) { return c.dataset.id; }).join('、'));
+
+    out.value = lines.join('\n');
+    out.style.display = 'block';
+    out.select();
+    out.scrollIntoView({ block: 'nearest' });
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

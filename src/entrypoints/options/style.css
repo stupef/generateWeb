@@ -1,0 +1,281 @@
+/* 设置页样式。配色沿用弹窗那一套，让两个页面看起来是同一个东西 */
+
+:root {
+  --bg: #f6f6f4;
+  --card: #ffffff;
+  --border: #e4e3df;
+  --border-strong: #cfcec8;
+  --text: #1f1f1c;
+  --text-muted: #6b6a64;
+  --text-faint: #918f88;
+  --accent: #3d5afe;
+  --ok-bg: #f2f8f2;
+  --ok-border: #b7d4b7;
+  --ok-text: #3f7a3f;
+  --warn-bg: #fdf8ec;
+  --warn-border: #e8d5a3;
+  --warn-text: #8a6a1f;
+  --bad-bg: #fdf3f2;
+  --bad-border: #f0ccc7;
+  --bad-text: #a3352a;
+  --bad-body: #7a4b43;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.wrap {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 28px 20px 56px;
+}
+
+.head h1 {
+  font-size: 18px;
+  margin: 0 0 8px;
+}
+
+.sub {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 18px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 18px;
+}
+
+.field:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  display: block;
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+input[type='text'],
+input[type='password'],
+select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+input:focus,
+select:focus {
+  outline: 2px solid rgba(61, 90, 254, 0.35);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* Key 和模型名两行要把按钮摆在输入框右侧，用 flex 而不是绝对定位，
+   输入框因此能跟着按钮宽度自适应 */
+.key-row {
+  display: flex;
+  gap: 8px;
+}
+
+.key-row input {
+  min-width: 0;
+  flex: 1;
+}
+
+.hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.hint a {
+  color: var(--accent);
+}
+
+.check {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fbfbfa;
+}
+
+.check input {
+  margin-top: 3px;
+  flex: none;
+}
+
+.check em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 3px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+button {
+  padding: 7px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #f2f2f0;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+button.primary:hover {
+  filter: brightness(1.08);
+}
+
+button.ghost {
+  padding: 7px 10px;
+  color: var(--text-muted);
+}
+
+.saved {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ---- 结果块 ---- */
+
+.status {
+  margin-top: 18px;
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.status.ok {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+}
+
+.status.warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+}
+
+.status.bad {
+  background: var(--bad-bg);
+  border-color: var(--bad-border);
+}
+
+.status-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.status.ok .status-title {
+  color: var(--ok-text);
+}
+
+.status.warn .status-title {
+  color: var(--warn-text);
+}
+
+.status.bad .status-title {
+  color: var(--bad-text);
+}
+
+.status-body {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+}
+
+.status.bad .status-body {
+  color: var(--bad-body);
+}
+
+/* 服务商的原话单独一块等宽显示，方便整段复制去搜 */
+.status-detail {
+  display: block;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.notes h2 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.notes h2:not(:first-child) {
+  margin-top: 18px;
+}
+
+.notes p {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+}
+
+.notes code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  background: var(--bg);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.notes .foot {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-faint);
+}

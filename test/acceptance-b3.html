@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B3 验收 · 字体与排版提取</title>
+<style>
+  /* ------------------------------------------------------------------
+     这个页面是被测对象，不是说明书。每一处字号都刻意选过，
+     对应 B3 的一条验收标准，改动之前先想清楚会破坏哪一条。
+
+     预期结果写在页面最下方的折叠区里，默认收起，展开会被采集器读到，
+     所以它自己也用了 12px，不会额外多出一级字号。
+     ------------------------------------------------------------------ */
+
+  /* 标题字体刻意声明成一个本地几乎不可能存在的名字，并配一条 @font-face。
+     文件不存在，字体会加载失败，浏览器会掉到 Georgia；
+     但 @font-face 规则本身已经注册进 document.fonts，
+     所以采集器能读到这个名字并判定为「页面自带」，进而给出替代方案。
+     这正是验收标准三要覆盖的场景。 */
+  @font-face {
+    font-family: "Söhne Buch";
+    src: url("./fonts/sohne-buch.woff2") format("woff2");
+    font-weight: 400 700;
+  }
+
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    margin: 0;
+    padding: 32px 40px 80px;
+    max-width: 760px;
+    background: #ffffff;
+    color: #1f1f1c;
+    font-family: "Helvetica Neue", Arial, "PingFang SC", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  /* 标题走衬线，正文走无衬线。两套字体分工明确，
+     对应验收标准一：能区分标题字体和正文字体。 */
+  h1,
+  h2,
+  h3 {
+    font-family: "Söhne Buch", Georgia, "PingFang SC", serif;
+    color: #111110;
+  }
+
+  h1 {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.08;
+    letter-spacing: -1.2px;
+    margin: 0 0 16px;
+  }
+
+  h2 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.4px;
+    margin: 48px 0 12px;
+  }
+
+  h3 {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 28px 0 10px;
+  }
+
+  p {
+    margin: 0 0 14px;
+  }
+
+  /* 次要文字，比正文小一级 */
+  .small {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #55544f;
+  }
+
+  /* 说明文字，页面里最小的一档 */
+  .note {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #77756e;
+  }
+
+  /* 等宽：正文用无衬线，代码用等宽，两套各管一摊 */
+  pre {
+    margin: 0 0 14px;
+    padding: 14px 16px;
+    background: #f6f6f4;
+    border: 1px solid #e4e3df;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .oneshot {
+    margin: 0 0 14px;
+  }
+
+  details {
+    margin-top: 56px;
+    border-top: 1px solid #e4e3df;
+    padding-top: 16px;
+  }
+
+  summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: #77756e;
+  }
+</style>
+</head>
+<body>
+
+<h1>排版提取验收</h1>
+
+<p>这个页面把 B3 的三条验收标准各做成了一处可控的样本，点开扩展就能逐条对照。页面里的每一个字号都是选过的，不是随手写的。</p>
+
+<h2>字号阶梯</h2>
+
+<h3>三级标题</h3>
+
+<p>这一段是正文，页面里字符量最大的那个字号。采集器要靠字符量把正文认出来，所以这里必须写得足够长，短了正文就会被别的层级抢走，整个阶梯的角色分配跟着全错。这一段还负责验证正文的行高回填，段落行高设的是 1.6 倍。</p>
+
+<p>再来一段正文，把字符量的领先幅度拉开。正文是不是判定得准，直接决定了标题和辅助文字往两边站的位置，所以这一级的证据越厚越好。</p>
+
+<h3>第三段说明</h3>
+
+<p>正文继续，凑够足够的样本量。零散的一两句话撑不起一个层级，这也是分析层设了字符量门槛的原因。</p>
+
+<p class="small">这一段是次要文字，字号比正文小一级，用来放时间戳、单位、辅助标签这类不该抢注意力的内容。</p>
+
+<p class="note">这一段是最小的一档说明文字，通常出现在页脚、图注和表单校验提示里。字号再往下走就不可读了，所以这一档就是页面的下限。</p>
+
+<h2>一次性数值</h2>
+
+<p class="oneshot">这一段里混进了三个只在页面上出现一次的字号，分别是
+<span style="font-size:17.3px">十七</span>、
+<span style="font-size:18.4px">十八</span>和
+<span style="font-size:21.5px">二一</span>。
+它们各自只承载两三个字，不构成层级，应该被挡在阶梯之外。</p>
+
+<h2>等宽代码</h2>
+
+<pre><code>const sample = await chrome.scripting.executeScript({
+  target: { tabId: tab.id },
+  func: collectPageSample,
+});</code></pre>
+
+<h2>中英文混排</h2>
+
+<p>正文栈里带了中文字体，替换英文自定义字体时，中文字体必须原样保留在替代栈里，否则中英文混排会掉到系统默认字体上，字重和字宽都会对不齐。这一条专门用来验证替代方案没有把中文字体冲掉。</p>
+
+<details>
+<summary>预期结果（这一区收起时整片跳过，展开后才会被采集，所以正文只写了 12px）</summary>
+<div class="note">
+<p><strong>层级</strong>：应该在 48 / 32 / 24 / 16 / 14 / 13 / 12 这七级上落地，顺序从大到小。正文必须是 16px，靠字符量胜出。</p>
+<p><strong>角色</strong>：48 / 32 / 24 三档标记为标题并各自带 h1 / h2 / h3 的标签证据；16px 是正文；14px 和 12px 是辅助文字；13px 那档因为字体是等宽，应该判成代码。</p>
+<p><strong>一次性数值</strong>：17.3 / 18.4 / 21.5 三个应该出现在「已过滤的一次性字号」里，理由是只承载两三个字。</p>
+<p><strong>字体</strong>：应该识别出三套。标题那套名字是 Söhne Buch，标着「页面自带」，并给出替代栈；正文那套是 Helvetica Neue，标着「系统字体」；代码那套是 SFMono-Regular。</p>
+<!-- 代码那套为什么不是 Menlo：代码栈写的是
+       ui-monospace, SFMono-Regular, Menlo, Consolas, monospace
+     ui-monospace 是通用关键字不是字体文件，会被跳过，所以主族落到第二位的
+     SFMono-Regular（macOS 上 ui-monospace 本来解析到的就是它）。
+     报出 SFMono-Regular 是对的，不要改成 Menlo 去迁就直觉。 -->
+<p><strong>替代方案</strong>：Söhne Buch 的替代栈应该以 Georgia 开头，末尾落到 serif，并且里面保留着 PingFang SC。说明文字里应该提到中文字体已保留。</p>
+<p><strong>字间距</strong>：48px 那一级应该回填 -1.2px 的字间距。</p>
+</div>
+</details>
+
+</body>
+</html>

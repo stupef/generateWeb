@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 · S5 可见性过滤</title>
+<style>
+  /*
+   * 这一页压的是「哪些东西不该被算进去」。判据的难度差别很大：
+   *
+   *   display:none / hidden 属性   不参与排版，取不到尺寸，一眼能拦
+   *   visibility:hidden           有尺寸，看不见
+   *   visibility:collapse         表格行专用的那一支
+   *   opacity:0                   有尺寸，看不见
+   *   <details> 收起              在 Chrome 里仍然被排版，尺寸是真的，
+   *                               display / visibility / opacity 全是正常值，
+   *                               只有 checkVisibility() 认得出它不可见
+   *
+   * 下面 A 组每一种都用一个全页唯一的颜色，于是验收变成一句可以机械核对的
+   * 判断：A 组那八个颜色，一个都不该出现在结果里。
+   *
+   * B 组是两个对照，必须出现。没有对照的话，「全都没出现」也可能是因为
+   * 整页都采空了，那不算通过。
+   *
+   * C 组是三条如实记录的边界：这些内容在用户看来是看不见的，但当前实现
+   * 会采到。它们不参与通过判定，放在这里是为了不要把它们当成「已覆盖」。
+   *
+   * 另外两个可核对的量：隐藏区里全是 12px 且量很大的文字，一旦被采进去，
+   * 正文字号会被从 16px 拽到 12px；收起的 <details> 里有四百多字，
+   * 不该计入承载文字量。
+   */
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #ffffff;
+    color: #1f1f1c;
+    font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 30px; margin: 0 0 8px; }
+  h2 { font-size: 17px; margin: 34px 0 10px; }
+  h2 .kind { font-size: 12px; font-weight: 600; border-radius: 5px; padding: 2px 8px; margin-left: 8px; vertical-align: 1px; }
+  h2 .no { background: #fee2e2; color: #991b1b; }
+  h2 .yes { background: #dcfce7; color: #166534; }
+  h2 .note { background: #fef3c7; color: #92400e; }
+  p { color: #4a4a46; margin: 0 0 12px; }
+  .small { font-size: 12px; }
+
+  .box { padding: 14px 16px; border-radius: 10px; margin: 12px 0; }
+
+  /* ---- B 组：对照，应当出现 ---- */
+  .accent { background: #2563eb; color: #ffffff; font-size: 17px; padding: 22px 20px; }
+  details.opened .visible-secret { background: #ea580c; color: #ffffff; padding: 12px; }
+
+  /* ---- A 组：七种不该出现的写法，各一个全页唯一的颜色 ---- */
+  .a1 { display: none;            background: #7b2ff7; color: #7b2ff7; }
+  .a2 { visibility: hidden;       background: #dc2626; color: #dc2626; }
+  .a3 { opacity: 0;               background: #16a34a; color: #16a34a; }
+  .a5-hidden { display: none; }
+  details.a4 .secret { background: #d946ef; color: #d946ef; padding: 10px; }
+  .a5 { background: #9333ea; color: #9333ea; }
+  /* hidden 属性：浏览器默认样式给出 display:none，SPA 里很常见的写法 */
+  .a7 { background: #b45309; color: #b45309; }
+  /* 表格行用 visibility:collapse，与 visibility:hidden 走的是不同分支 */
+  .a8-row { visibility: collapse; }
+  .a8-row td { background: #a16207; color: #a16207; padding: 10px; }
+
+  /* ---- C 组：当前会被采到的边界 ---- */
+  .c-box { border: 1px dashed #d8b4fe; background: #faf5ff; border-radius: 10px; padding: 12px 14px; margin: 12px 0; }
+  .c1 { content-visibility: hidden; height: 64px; background: #0d9488; color: #0d9488; }
+  .c2-clip { height: 24px; overflow: hidden; }
+  .c2 { background: #0284c7; color: #0284c7; padding: 8px; }
+  .c3-under { position: fixed; left: 0; bottom: 0; right: 0; height: 90px; background: #1f2937; color: #ffffff; text-align: center; line-height: 90px; }
+  .c3 { background: #7c2d12; color: #7c2d12; padding: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>可见性过滤</h1>
+  <p>上方这段标题、正文以及下面 B 组的两块是这一页唯一真正可见的内容。
+  A 组的八种写法都不可见，它们的颜色如果出现在结果里，就说明对应的判据漏了。
+  正文应当是 16px，如果结果把它报成 12px，说明 A 组里那一大片小字被算进去了。</p>
+
+  <h2>B 组 · 对照，必须出现<span class="kind yes">应当出现</span></h2>
+
+  <div class="box accent">这是一个正常可见的蓝色块，颜色 #2563eb，预期出现在结果里。
+  它是这一页面积最大的纯色，正常应当进色板。</div>
+
+  <details class="opened" open>
+    <summary>这是一个默认展开的折叠区</summary>
+    <p class="visible-secret">展开状态下的内容必须被采到。这一段的橙色 #ea580c 预期出现在结果里，
+    用来证明过滤器没有把整页都丢掉。</p>
+  </details>
+
+  <h2>A 组 · 八种不该出现的写法<span class="kind no">不应出现</span></h2>
+
+  <div class="box a1 small">
+    A1 display:none。不参与排版，取不到尺寸。里面这一片小字如果被算进字号统计，
+    正文就会被拽下来。预期颜色 #7b2ff7 不出现。
+  </div>
+
+  <div class="box a2 small">
+    A2 visibility:hidden。尺寸是真实的，只是画不出来。这一类的坑在于它的
+    getBoundingClientRect 返回真实尺寸，靠尺寸拦不住。预期颜色 #dc2626 不出现。
+  </div>
+
+  <div class="box a3 small">
+    A3 opacity:0。同样有真实尺寸，遮住也没用。预期颜色 #16a34a 不出现。
+  </div>
+
+  <div class="a5-hidden">
+    <div class="box a5 small">
+      A5 藏在一个 display:none 的祖先里。子元素自己没有不显示的声明，只有祖先有。
+      预期颜色 #9333ea 不出现。
+    </div>
+  </div>
+
+  <div class="box a7 small" hidden>
+    A7 用 hidden 属性藏起来。这个属性由浏览器默认样式给出 display:none，
+    在单页应用里很常见。预期颜色 #b45309 不出现。
+  </div>
+
+  <table style="border-collapse:collapse;margin:12px 0">
+    <tr class="a8-row"><td>A8 表格行用 visibility:collapse。它与 visibility:hidden 是两条不同的分支，
+    在表格里表现为整行收掉。预期颜色 #a16207 不出现。</td></tr>
+  </table>
+
+  <template>
+    <div class="small" style="background:#e11d48;color:#e11d48;padding:10px">
+      A6 放在 template 里，内容属于文档片段，不在文档树中。
+    </div>
+  </template>
+
+  <details class="a4">
+    <summary>这是一个收起的折叠区（点开才看得到）</summary>
+    <div class="secret small">
+      收起状态下的这一段有四百多个字，而且是 12px。<br>
+      在 Chrome 里收起的 details 内容仍然会被排版，getBoundingClientRect 返回真实尺寸，
+      display、visibility、opacity 三个值全都是正常的，上面几条判据一条都拦不住它。<br>
+      只有 checkVisibility() 认得出这一段现在不可见。<br>
+      这一条对应真实页面上的折叠面板、抽屉、收起的菜单，里面往往是大段说明文字，
+      一旦漏进去，正文字号会被整片拽偏，而且从结果上完全看不出来是哪里来的。<br>
+      所以这是整页里最值得盯着看的一条。预期颜色 #d946ef 不出现，
+      而且这四百多字不计入承载文字量。<br>
+      再补几句把字数堆够，确保超过四百字这个量级，免得因为量太小而看不出污染效果，
+      那就等于没有验到。收尾一句。
+    </div>
+  </details>
+
+  <h2>C 组 · 如实记录：当前会被采到的边界<span class="kind note">不参与判定</span></h2>
+  <p>下面三块在用户看来也属于「看不见」，但当前实现拦不住。它们不属于 B1 的失败项，
+  放在这里只是不要把它们当成已经覆盖了。</p>
+
+  <div class="c-box">
+    <p class="small" style="margin-bottom:8px">C1 元素自己声明了 content-visibility:hidden。
+    它的<b>内容</b>不渲染，但<b>它自己的盒子</b>是渲染出来的（这里给了 64px 高），
+    所以它自己的背景色 #0d9488 会被采到。严格说这不算错，盒子确实画出来了。</p>
+    <div class="c1">这个盒子的背景是 #0d9488</div>
+  </div>
+
+  <div class="c-box">
+    <p class="small" style="margin-bottom:8px">C2 被 overflow:hidden 裁掉的内容。
+    裁剪只影响绘制，不影响布局盒子，getBoundingClientRect 返回的仍然是完整尺寸，
+    所以裁掉的部分照样会被采到。颜色 #0284c7 预期出现在结果里。</p>
+    <div class="c2-clip"><div class="c2">这一段的下半截被裁掉了，但盒子还在</div></div>
+  </div>
+
+  <div class="c-box">
+    <p class="small" style="margin-bottom:8px">C3 被固定定位元素盖住的内容。判据里没有遮挡检测，
+    盖住的和被盖住的都会被采到。颜色 #7c2d12 预期出现在结果里。</p>
+    <div class="c3">页面底部那一条深色横条会盖住这一段</div>
+  </div>
+
+  <h2>这一页的结论怎么下</h2>
+  <p>A 组八个颜色一个都没出现，同时 B 组两个颜色都出现，正文是 16px，这一条就算过。
+  任何一条对不上，都在备注里写清是哪一个。</p>
+
+</div>
+
+<div class="c3-under">固定定位的横条，盖住上面 C3 那一段</div>
+</body>
+</html>

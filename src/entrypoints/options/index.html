@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      在新标签里打开，不用默认的嵌入式对话框。
+      嵌入式对话框宽度只有几百像素，塞不下协议、地址、Key、模型这一组字段；
+      更要紧的是权限申请在对话框里不可靠，而这一页的主要动作之一就是申请权限。
+      WXT 用这个 meta 标签覆盖 options_ui 的同名字段，写在 wxt.config.ts 里会被它自己的默认值盖掉。
+    -->
+    <meta name="manifest.open_in_tab" content="true" />
+    <title>AI 补全设置</title>
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="head">
+        <h1>AI 语义补全</h1>
+        <p class="sub">
+          不配置也能用。没有 Key 时插件照常产出一份完整的 DESIGN.md，只是文案由本地规则生成，
+          不会带上风格综述、颜色语义、组件描述和提示词示例。
+        </p>
+      </header>
+
+      <section class="card">
+        <label class="field">
+          <span class="label">协议</span>
+          <select id="protocol"></select>
+          <span class="hint" id="protocol-hint"></span>
+        </label>
+
+        <label class="field">
+          <span class="label">服务商</span>
+          <select id="preset"></select>
+          <span class="hint" id="preset-hint"></span>
+        </label>
+
+        <label class="field">
+          <span class="label">接口地址</span>
+          <input id="base-url" type="text" spellcheck="false" placeholder="https://api.example.com/v1" />
+          <span class="hint" id="base-hint">填到版本段为止，路径由插件按协议补全。</span>
+        </label>
+
+        <label class="field">
+          <span class="label">API Key</span>
+          <span class="key-row">
+            <input id="api-key" type="password" spellcheck="false" autocomplete="off" placeholder="sk-…" />
+            <button type="button" id="toggle-key" class="ghost">显示</button>
+          </span>
+          <span class="hint" id="key-hint"></span>
+        </label>
+
+        <label class="field">
+          <span class="label">模型名</span>
+          <span class="key-row">
+            <input id="model" type="text" spellcheck="false" list="model-list" placeholder="deepseek-chat" />
+            <button type="button" id="fetch-models" class="ghost">拉取列表</button>
+          </span>
+          <datalist id="model-list"></datalist>
+          <span class="hint">模型名变化很快。填错时点「拉取列表」，从服务商返回的名单里挑一个。</span>
+        </label>
+
+        <label class="check">
+          <input id="auto" type="checkbox" />
+          <span>
+            提取完成后自动做一次补全
+            <em>每打开一次插件就会调用一次模型，按服务商计费。</em>
+          </span>
+        </label>
+
+        <div class="actions">
+          <button type="button" id="test">测试连接</button>
+          <button type="button" id="save" class="primary">保存</button>
+          <button type="button" id="clear" class="ghost">清空配置</button>
+          <span class="saved" id="saved-at"></span>
+        </div>
+      </section>
+
+      <section class="status" id="status" hidden></section>
+
+      <section class="card notes">
+        <h2>关于存储</h2>
+        <p>
+          Key 存在本机的插件存储里（<code>chrome.storage.local</code>），不上传、不参与同步。
+          它没有加密，任何能读到这个浏览器配置文件目录的人都能看到它。不放心的话，
+          去服务商控制台单独建一把只用于这个插件的 Key，用完随时撤销。
+        </p>
+        <p>
+          网络权限按域名单独申请，只在你填了哪个地址时才申请哪一个。所以第一次保存会弹一次授权确认。
+          地址改动之后需要重新授权，点一次「保存」或「测试连接」即可。
+        </p>
+        <p>
+          模型收到的输入是从页面分析出来的设计简报（颜色、字号、间距、组件及其统计），
+          不包含页面正文，也不包含你的 API Key 之外的任何凭据。
+        </p>
+        <h2>关于校验</h2>
+        <p>
+          模型回来的每一段文字都必须不含任何阿拉伯数字。数值由本地分析层负责写，
+          模型只补语义。不合规的字段会被逐条丢弃，界面上会告诉你丢了几处。
+          这样「补全后的数值与提取结果一致」是被结构保证的，而不是靠提示词祈祷的。
+        </p>
+        <p class="foot" id="version-foot"></p>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

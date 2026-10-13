@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 验收 · 无法运行的页面</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --border: #e2e0da;
+    --border-strong: #cbc8bf;
+    --text: #1f1f1c;
+    --muted: #6b6a64;
+    --faint: #918f88;
+    --accent: #3d5afe;
+    --ok: #2f7d4f;
+    --ok-bg: #f0f8f2;
+    --ok-border: #bfdcc7;
+    --bad: #a3352a;
+    --bad-bg: #fdf3f2;
+    --bad-border: #f0ccc7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 24px 200px;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.65 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 22px; font-size: 13px; }
+
+  .banner {
+    background: #fff8e6;
+    border: 1px solid #ecd9a4;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .banner strong { color: #7a5a12; }
+
+  h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--faint);
+    margin: 30px 0 10px;
+    font-weight: 600;
+  }
+
+  .case {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: start;
+  }
+  .case.pass { border-color: var(--ok-border); background: var(--ok-bg); }
+  .case.fail { border-color: var(--bad-border); background: var(--bad-bg); }
+
+  .case-main { min-width: 0; }
+  .case-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    background: #eef0ff;
+    border-radius: 5px;
+    padding: 1px 6px;
+    flex: none;
+  }
+  .case-title { font-weight: 600; font-size: 14px; }
+
+  .row { display: flex; align-items: center; gap: 6px; margin-top: 9px; min-width: 0; }
+  .row-label { color: var(--faint); font-size: 12px; flex: none; width: 52px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    background: #f2f1ed;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 2px 7px;
+    overflow-wrap: anywhere;
+  }
+  .copy {
+    font-size: 11px;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 2px 8px;
+    cursor: pointer;
+    flex: none;
+    font-family: inherit;
+  }
+  .copy:hover { color: var(--text); border-color: var(--text); }
+
+  .expect {
+    margin-top: 9px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .expect b { color: var(--text); font-weight: 600; }
+  .watch {
+    margin-top: 7px;
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: var(--bad-bg);
+    border: 1px solid var(--bad-border);
+    color: #7a4b43;
+    line-height: 1.6;
+  }
+
+  .verdict { display: flex; gap: 6px; flex: none; }
+  .verdict label {
+    cursor: pointer;
+    font-size: 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+    padding: 5px 11px;
+    background: #fff;
+    color: var(--muted);
+    user-select: none;
+    white-space: nowrap;
+  }
+  .verdict input { display: none; }
+  .verdict input:checked + span { font-weight: 600; }
+  .verdict .ok input:checked ~ span { color: var(--ok); }
+  .verdict .bad input:checked ~ span { color: var(--bad); }
+  .verdict label:has(input:checked) { border-color: currentColor; }
+  .verdict .ok:has(input:checked) { border-color: var(--ok); color: var(--ok); background: #fff; }
+  .verdict .bad:has(input:checked) { border-color: var(--bad); color: var(--bad); background: #fff; }
+
+  .note {
+    margin-top: 10px;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 9px;
+    font: inherit;
+    font-size: 12px;
+    resize: vertical;
+    min-height: 34px;
+    background: #fff;
+    color: var(--text);
+  }
+  .note:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+
+  .dock {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border-strong);
+    padding: 12px 24px;
+  }
+  .dock-inner { max-width: 860px; margin: 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .tally { font-size: 13px; color: var(--muted); }
+  .tally b { color: var(--text); }
+  .tally .n-ok { color: var(--ok); }
+  .tally .n-bad { color: var(--bad); }
+  .grow { flex: 1; }
+  button.act {
+    font: inherit;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.act.primary { background: #1f1f1c; color: #fff; border-color: #1f1f1c; }
+  button.act:hover { opacity: 0.85; }
+  #out {
+    width: 100%;
+    margin-top: 10px;
+    height: 92px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    resize: vertical;
+    display: none;
+    background: #fff;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>B1 验收 · 插件无法运行的页面</h1>
+  <p class="sub">验收标准：在插件无法运行的页面上给出友好提示，不报错、不白屏。</p>
+
+  <div class="banner">
+    <strong>动手之前先做两件事。</strong><br>
+    一是确认扩展已重新加载，因为采集函数改过。打开 <code>chrome://extensions</code>，找到 DESIGN.md Extractor，点卡片上的刷新图标（或删掉重新加载一次）。<br>
+    二是把扩展图标固定到工具栏。点地址栏右侧的拼图图标，找到它，点旁边的图钉，否则每次都要多点一步。<br>
+    <strong>另外，每条用例的地址请手动粘贴到地址栏。</strong>浏览器禁止网页跳转到 <code>chrome://</code> 开头的地址，所以下面的地址做不成可点的链接，只能复制。
+  </div>
+
+  <h2>前置检查</h2>
+
+  <section class="case" data-id="P0" data-name="扩展加载状态" data-expect="卡片无红色错误提示">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">P0</span><span class="case-title">扩展加载状态</span></div>
+      <div class="row">
+        <span class="row-label">地址</span>
+        <code>chrome://extensions</code>
+        <button class="copy" data-copy="chrome://extensions">复制</button>
+      </div>
+      <p class="expect">卡片上写着 DESIGN.md Extractor、版本 0.1.0,<b>没有任何红色报错文字</b>,并且右上角开发者模式是打开的。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="P0" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="P0" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <h2>一 · 浏览器内部页面（六种）</h2>
+
+  <section class="case" data-id="U1" data-name="内置新标签页" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U1</span><span class="case-title">内置新标签页</span></div>
+      <div class="row"><span class="row-label">地址</span><code>chrome://newtab</code><button class="copy" data-copy="chrome://newtab">复制</button></div>
+      <p class="expect">提示标题应为 <b>这是浏览器内部页面</b>。正文要说明这是浏览器内核层面的限制，不是权限能打开的开关。下方给一条指引：切换到普通网站再试。<b>并且不出现「重新提取」按钮</b>,因为这类页面重试一百次也没用。</p>
+      <p class="watch"><b>U1 到 U6 上一轮全部失败，提示是「读不到当前页面地址」，已修，重点复测。</b>原因是扩展只申请了 <code>activeTab</code> 没有 <code>tabs</code> 权限，而受限页面不会授予 activeTab，于是 <code>tab.url</code> 是 undefined，被误判成了「刚安装完还没生效」。现在改成读不到地址就不做归因，交给注入的真实报错来判断。<b>六条都必须显示成内部页面这一条提示。</b></p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U1" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U1" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U2" data-name="设置页" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U2</span><span class="case-title">设置页</span></div>
+      <div class="row"><span class="row-label">地址</span><code>chrome://settings</code><button class="copy" data-copy="chrome://settings">复制</button></div>
+      <p class="expect">期望同 U1。<b>这是最容易出问题的一条</b>,设置页是单页应用，地址栏看起来像普通网址，但协议仍然是内部的。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U2" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U2" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U3" data-name="扩展管理页" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U3</span><span class="case-title">扩展管理页</span></div>
+      <div class="row"><span class="row-label">地址</span><code>chrome://extensions</code><button class="copy" data-copy="chrome://extensions">复制</button></div>
+      <p class="expect">期望同 U1。这条顺带验证一个真实场景，用户在自己装完扩展的地方点图标，最该被拦住的就是这里。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U3" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U3" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U4" data-name="版本信息页" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U4</span><span class="case-title">版本信息页</span></div>
+      <div class="row"><span class="row-label">地址</span><code>chrome://version</code><button class="copy" data-copy="chrome://version">复制</button></div>
+      <p class="expect">期望同 U1。这条没有特殊之处，只是换个页面确认判断不是只对新标签页生效。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U4" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U4" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U5" data-name="查看网页源码" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U5</span><span class="case-title">查看网页源码</span></div>
+      <div class="row"><span class="row-label">地址</span><code>view-source:https://example.com</code><button class="copy" data-copy="view-source:https://example.com">复制</button></div>
+      <p class="expect">期望同 U1。<b>这条最容易漏。</b>地址里明明含着一个正常网址，但它是浏览器的源码查看器，同样禁止注入。如果这里报错了，说明判断只认了协议前缀的一部分。<br>注意地址栏里的 <code>view-source:</code> 前不要有空格，粘贴后如果 Chrome 自动补成 <code>https://</code> 就是粘错了。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U5" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U5" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U6" data-name="空白页" data-expect="这是浏览器内部页面">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U6</span><span class="case-title">空白页</span></div>
+      <div class="row"><span class="row-label">地址</span><code>about:blank</code><button class="copy" data-copy="about:blank">复制</button></div>
+      <p class="expect">期望同 U1。空白页没有文档树，就算能注入也读不到任何东西，所以必须被提前拦住而不是走到注入那一步再失败。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U6" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U6" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <h2>二 · 受限的普通网站</h2>
+
+  <section class="case" data-id="U7" data-name="Chrome 应用商店" data-expect="这是 Chrome 应用商店">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U7</span><span class="case-title">Chrome 应用商店</span></div>
+      <div class="row"><span class="row-label">地址</span><code>https://chromewebstore.google.com/</code><button class="copy" data-copy="https://chromewebstore.google.com/">复制</button></div>
+      <p class="expect">提示标题应为 <b>这是 Chrome 应用商店</b>,是<b>独立的一条提示</b>,不应该复用「浏览器内部页面」那句。正文要说明这是防止扩展在商店里刷评价或篡改安装按钮的策略。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U7" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U7" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U8" data-name="本地文件（本页自身）" data-expect="这是本地文件">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U8</span><span class="case-title">本地文件，就是本页</span></div>
+      <div class="row"><span class="row-label">脚本</span><code id="selfpath">file:///Users/dqh/dqh/design-md-extractor/test/acceptance-b1.html</code><button class="copy" data-copy="file:///Users/dqh/dqh/design-md-extractor/test/acceptance-b1.html">复制</button></div>
+      <p class="expect">你现在就是以这种形式打开这一页的，所以直接点扩展图标即可。期望标题 <b>这是本地文件</b>,并给出<b>四步操作指引</b>,最后一步是「刷新这个本地文件页面，再点一次插件图标」。<b>不出现「重新提取」按钮</b>,开关没打开时点重试必然失败，这四步要用户自己去走。<br><b>然后按指引真的做一遍</b>:到扩展详情页打开「允许访问文件网址」,刷新本页再点图标，这时应该能正常提取出这一页的颜色。这一步验证的是提示里给出的建议确实有效，而不只是话说得漂亮。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U8" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U8" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U9" data-name="PDF 文件" data-expect="这是 PDF 文件">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U9</span><span class="case-title">PDF 文件</span></div>
+      <div class="row"><span class="row-label">地址</span><code>https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf</code><button class="copy" data-copy="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf">复制</button></div>
+      <p class="expect">期望标题 <b>这是 PDF 文件</b>,正文说明 PDF 由 Chrome 内置阅读器渲染，阅读器跑在自己的扩展上下文里，内容不在网页文档树里。<b>不出现「重新提取」按钮。</b></p>
+      <p class="watch"><b>这条上一轮是失败的，已修，重点复测。</b>原因有两个。一是 PDF 判定用的正则写成 <code>/^https?:\/\/[^/]*\.pdf/</code>,其中 <code>[^/]*</code> 跨不过斜杠，<code>\.pdf</code> 只能贴在主机名末尾，所以这条 <code>/.../dummy.pdf</code> 地址根本没被拦住，直接走进了注入路径。二是判断链里「内部页面」那条排在「PDF」前面。<br>现在 PDF 判定改成只看 <code>pathname</code> 的后缀，不再对整串地址做正则。<br><b>一个仍需你确认的观察点。</b>如果扩展能读到这一页的地址，会显示成 <b>这是 PDF 文件</b>;如果读不到，会显示成 <b>这是浏览器内部组件渲染的页面</b>。后者也符合预期，因为内置阅读器本身就是一个组件扩展。麻烦你告诉我实际看到的是哪一个。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U9" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U9" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <h2>三 · 运行期失败与对照</h2>
+
+  <section class="case" data-id="U10" data-name="打不开的域名" data-expect="页面没有正常加载">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U10</span><span class="case-title">打不开的域名</span></div>
+      <div class="row"><span class="row-label">地址</span><code>https://this-host-does-not-exist-3f9a2b.invalid</code><button class="copy" data-copy="https://this-host-does-not-exist-3f9a2b.invalid">复制</button></div>
+      <p class="expect">等页面显示成 Chrome 的错误页之后，再点扩展图标。期望标题 <b>页面没有正常加载</b>,正文说明这个标签页显示的是浏览器的错误页。<b>不出现「重新提取」按钮</b>,页面还是错误页，重试必然失败。<br>这里走的是和前面完全不同的代码路径，前面是注入之前就拦下，这条是注入失败了才被捕获，所以更值得看。</p>
+      <textarea class="note" placeholder="备注（可选）"></textarea>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U10" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U10" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U11" data-name="普通网页对照" data-expect="正常提取出结果">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U11</span><span class="case-title">普通网页对照</span></div>
+      <div class="row"><span class="row-label">地址</span><code>https://example.com</code><button class="copy" data-copy="https://example.com">复制</button></div>
+      <p class="expect"><b>反向对照，这条必须能跑通。</b>期望正常显示颜色角色卡片，不能弹出任何错误提示。如果这里也报错，说明前面的友好提示是「把所有情况都拦住了」而不是「精准识别」，那不算通过。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U11" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U11" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+  <section class="case" data-id="U12" data-name="PDF 外壳页面（框架结构）" data-expect="出现覆盖范围警示">
+    <div class="case-main">
+      <div class="case-head"><span class="tag">U12</span><span class="case-title">PDF 外壳页面（框架结构）</span></div>
+      <div class="row"><span class="row-label">地址</span><code>file:///Users/dqh/dqh/design-md-extractor/test/pdf-shell.html</code><button class="copy" data-copy="file:///Users/dqh/dqh/design-md-extractor/test/pdf-shell.html">复制</button></div>
+      <p class="expect">期望在<b>色板上方</b>出现一块<b>红色警示</b>，标题是「覆盖范围」，正文说明本页有框架区域、占视口多少、框架来自不同域名读不到。色板标题同时变成<b>颜色用途（色板可能不完整）</b>。<br>底部统计行里「遍历 N 个元素」的 N 应该很小，因为顶层几乎没有内容。</p>
+      <p class="watch"><b>这条对应的就是你报的「PDF 提取出白色」那类页面，是本轮修的重点。</b>这个页面刻意做成外壳结构，顶层只有一行说明，真正的内容在一个跨域框架里。<br><b>修之前的表现</b>是扩展一路正常走完，给你一个孤零零的白色，没有任何解释，看起来像工具坏了。<br><b>现在应该有</b>明确说明：主体在框架里、框架跨域读不到、不要用这个色板复刻。<br>如果你之前报的那个 IEEE 地址还能打开，也可以再点一次插件，它属于同一类结构，表现应当一致。<br>注意这是本地文件，请先按 U8 的指引打开「允许访问文件网址」，否则会走 U8 那条提示。</p>
+    </div>
+    <div class="verdict">
+      <label class="ok"><input type="radio" name="U12" value="通过"><span>通过</span></label>
+      <label class="bad"><input type="radio" name="U12" value="不通过"><span>不通过</span></label>
+    </div>
+  </section>
+
+</div>
+
+<div class="dock">
+  <div class="dock-inner">
+    <span class="tally" id="tally"></span>
+    <span class="grow"></span>
+    <button class="act" id="reset">清空</button>
+    <button class="act primary" id="export">生成结果文本</button>
+  </div>
+  <textarea id="out" readonly placeholder=""></textarea>
+</div>
+
+<script>
+(function () {
+  var cases = Array.prototype.slice.call(document.querySelectorAll('.case'));
+  var out = document.getElementById('out');
+
+  function verdictOf(id) {
+    var checked = document.querySelector('input[name="' + id + '"]:checked');
+    return checked ? checked.value : '未测';
+  }
+
+  function paint() {
+    var ok = 0, bad = 0, todo = 0;
+    cases.forEach(function (c) {
+      var v = verdictOf(c.dataset.id);
+      c.classList.toggle('pass', v === '通过');
+      c.classList.toggle('fail', v === '不通过');
+      if (v === '通过') ok++;
+      else if (v === '不通过') bad++;
+      else todo++;
+    });
+    document.getElementById('tally').innerHTML =
+      '共 <b>' + cases.length + '</b> 条　' +
+      '<span class="n-ok">通过 <b>' + ok + '</b></span>　' +
+      '<span class="n-bad">不通过 <b>' + bad + '</b></span>　' +
+      '未测 <b>' + todo + '</b>';
+  }
+
+  document.addEventListener('change', paint);
+
+  cases.forEach(function (c) {
+    var note = c.querySelector('.note');
+    if (note) note.addEventListener('input', paint);
+    c.addEventListener('click', function (e) {
+      if (e.target.classList.contains('copy')) return;
+      if (e.target.closest('.verdict') || e.target.tagName === 'TEXTAREA') return;
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.copy');
+    if (!btn) return;
+    var text = btn.dataset.copy;
+    var done = function () {
+      var old = btn.textContent;
+      btn.textContent = '已复制';
+      setTimeout(function () { btn.textContent = old; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  });
+
+  function fallback(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (err) { window.prompt('手动复制', text); }
+    document.body.removeChild(ta);
+  }
+
+  document.getElementById('reset').addEventListener('click', function () {
+    document.querySelectorAll('input[type=radio]').forEach(function (r) { r.checked = false; });
+    document.querySelectorAll('.note').forEach(function (n) { n.value = ''; });
+    out.value = '';
+    out.style.display = 'none';
+    paint();
+  });
+
+  document.getElementById('export').addEventListener('click', function () {
+    var now = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    var stamp = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) +
+      ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+    var lines = [];
+    lines.push('B1 验收记录 · 插件无法运行的页面');
+    lines.push('时间：' + stamp);
+    lines.push('页面：' + location.href);
+    lines.push('');
+
+    cases.forEach(function (c) {
+      var v = verdictOf(c.dataset.id);
+      lines.push(c.dataset.id + '  ' + c.dataset.name + '　【' + v + '】　期望：' + c.dataset.expect);
+      var note = c.querySelector('.note');
+      if (note && note.value.trim()) lines.push('      备注：' + note.value.trim());
+    });
+
+    var bad = cases.filter(function (c) { return verdictOf(c.dataset.id) === '不通过'; });
+    lines.push('');
+    lines.push(bad.length === 0
+      ? '结论：全部通过'
+      : '结论：' + bad.length + ' 条不通过，编号 ' + bad.map(function (c) { return c.dataset.id; }).join('、'));
+
+    out.value = lines.join('\n');
+    out.style.display = 'block';
+    out.select();
+    out.scrollIntoView({ block: 'nearest' });
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>

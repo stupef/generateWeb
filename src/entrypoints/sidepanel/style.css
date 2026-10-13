@@ -1,0 +1,1150 @@
+:root {
+  --bg: #ffffff;
+  --bg-sunken: #f6f6f4;
+  --border: #e4e3df;
+  --border-strong: #cfcec8;
+  --text: #1f1f1c;
+  --text-muted: #6b6a64;
+  --text-faint: #918f88;
+  --danger-bg: #fdf3f2;
+  --danger-border: #f0ccc7;
+  --danger-text: #a3352a;
+  --accent: #3d5afe;
+  /* 悬停在可点行上的底色。比 bg-sunken 更偏强调色，否则悬停和普通底色
+     混在一起，可点这件事就看不出来了 */
+  --hover: #f1f3ff;
+  --hover-ring: #c9cffd;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  /*
+   * 宽度不写死。侧边栏的宽由浏览器管，用户拖到多宽就是多宽，扩展既设不了
+   * 也读不到，所以版式按「容器给多少就用多少」来做。
+   *
+   * 唯一的已知边界是下限，Chrome 给侧边栏设了约 320px 的地板，拖不过去。
+   * 这个宽度下面每一行仍然要能读，所以下面各处都按 flex 收缩来写，不给任何
+   * 一级元素定死宽度。
+   *
+   * 高度撑满。这里和原来的弹窗不同，弹窗是五百多像素的固定高度，内容多了
+   * 内部滚动；侧边栏就是整个窗口的高度，滚动交回给文档本身
+   */
+  width: 100%;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#app {
+  padding: 14px 16px 18px;
+}
+
+.hd {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.hd-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  flex: none;
+  margin-top: 2px;
+  background: linear-gradient(135deg, #3d5afe, #7c4dff);
+}
+
+.hd-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.hd-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hd-url {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+/* ---- 设置入口 ---- */
+
+/*
+ * 摆在标题右边。它是整页唯一一个「离开这里」的动作，和下面的产物按钮不是
+ * 一类，所以留在头部而不是混进产物条。flex: none 是必须的，否则标题一长，
+ * 按钮会被 hd-text 挤扁。
+ */
+.icon-btn {
+  flex: none;
+  margin-top: 1px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--bg-sunken);
+  border-color: var(--text-faint);
+}
+
+/*
+ * 折叠和关闭这两个是纯图标按钮，比文字按钮窄一截。头部要放下三个按钮，
+ * 标题才不至于被挤得只剩几个字。
+ */
+.icon-btn.tri {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+}
+
+.icon-btn.tri svg {
+  display: block;
+}
+
+/* ---- 折叠后的窄条 ---- */
+
+/*
+ * 折叠时内容整块收起来，只剩右边这一条。
+ *
+ * 面板的宽不由扩展管，窄条右边那片空白是省不掉的，所以这里的做法是让窄条
+ * 自己在右边站住，剩下的地方保持面板底色，看上去就是面板收起来了。
+ */
+body.is-collapsed #app {
+  display: none;
+}
+
+.rail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* hidden 这个属性在 display:flex 面前不生效，得显式盖回来 */
+.rail[hidden] {
+  display: none;
+}
+
+.rail-open {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.rail-open:hover {
+  background: var(--bg-sunken);
+  border-color: var(--text-faint);
+}
+
+.rail-open svg {
+  display: block;
+}
+
+/*
+ * 竖排的页面名。窄条只有 44px 宽，横排一个字都放不下，竖排刚好。
+ * 长标题由 text-overflow 截断，Chrome 在竖排下也认这一条。
+ */
+.rail-label {
+  writing-mode: vertical-rl;
+  max-height: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ---- 产物条 ---- */
+
+/*
+ * 徽标和三个按钮同一行。徽标 flex: 1 且可截断，按钮 flex: none，
+ * 这样「AI 补全版」这类短标签不会因为模型名太长而把按钮挤出去。
+ */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.bar-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.origin {
+  min-width: 0;
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-faint);
+  background: var(--bg-sunken);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* AI 补全版用强调色。它是这一页里唯一一处「内容比默认多」的信号 */
+.origin.ai {
+  border-color: #c9cffd;
+  color: #3d4bd0;
+  background: #eef0ff;
+}
+
+/* 补全中是个瞬时态，用中性色压住，避免看起来像已经完成了 */
+.origin.busy {
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+/* 尝试过但没成功。用警示色，因为它带着一条用户可能需要处理的失败信息 */
+.origin.warn {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.export {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.export:hover:not(:disabled) {
+  background: var(--bg-sunken);
+  border-color: var(--text-faint);
+}
+
+.export:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+/* ---- AI 状态块 ---- */
+
+/*
+ * 和覆盖范围说明同一套视觉语言，都是「结论之外你需要知道的限定条件」。
+ * 失败时换成警示色，但整页仍然是可用的，所以不摆成错误页的样子。
+ */
+.ai-note {
+  margin-bottom: 14px;
+}
+
+.ai-note .stack {
+  margin-top: 7px;
+}
+
+.ai-note.ai-warn {
+  border-color: var(--danger-border);
+  border-left-color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.ai-note.ai-warn .usage {
+  color: #7a4b43;
+}
+
+.ai-note details {
+  margin-top: 10px;
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+/*
+ * 说明块里的动作按钮。
+ *
+ * 做成一枚文字按钮而不是实心按钮，是因为这一块整体是一段说明，不是主操作区。
+ * 收成不占位的行内元素后，整段文字读起来还是一段话，按钮落在末尾，
+ * 用户读完原因才看到它。
+ */
+.ai-actions {
+  margin-top: 10px;
+}
+
+.ai-action {
+  padding: 3px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.ai-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 警示底色上按钮的描边要跟着暗下来，否则会在那块背景上浮起来 */
+.ai-warn .ai-action {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+  background: #fff8f7;
+}
+
+.ai-warn .ai-action:hover {
+  border-color: var(--danger-text);
+}
+
+/* ---- 状态块 ---- */
+.state {
+  padding: 28px 8px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  margin: 0 auto 12px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: left;
+}
+
+.error-title {
+  font-weight: 600;
+  color: var(--danger-text);
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.error-body {
+  margin: 0;
+  color: #7a4b43;
+  font-size: 12px;
+}
+
+.error-hint {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  color: #7a4b43;
+  font-size: 12px;
+}
+
+/* ---- 统计条 ---- */
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.stat b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---- 角色卡片 ---- */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.role {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  flex: none;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.role-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.role-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.role-label {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.token {
+  color: var(--accent);
+  background: #eef0ff;
+  border-radius: 4px;
+  padding: 0 5px;
+}
+
+.hex {
+  color: var(--text-muted);
+  margin-left: auto;
+  letter-spacing: 0.02em;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-faint);
+}
+
+.badge.high {
+  border-color: #b7d4b7;
+  color: #3f7a3f;
+  background: #f2f8f2;
+}
+
+.badge.low {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.usage {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.chip {
+  font-size: 10px;
+  color: var(--text-faint);
+  background: var(--bg-sunken);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.merged {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.merged-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* 与页面底色几乎同色时的提示。语气是「说明」而不是「报错」，
+   所以走中性色，只在左侧压一条强调边线，和 bg-note 保持同一套视觉语言 */
+.near-note {
+  margin-top: 7px;
+  padding: 7px 9px;
+  border-left: 2px solid var(--border-strong);
+  border-radius: 0 6px 6px 0;
+  background: var(--bg-sunken);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* ---- 背景图像说明 ---- */
+.bg-note {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg-sunken);
+}
+
+.bg-note .usage {
+  margin: 0;
+}
+
+.bg-note .usage + .usage {
+  margin-top: 6px;
+}
+
+/* 色板基本失效时的覆盖范围说明，用警示色让用户第一眼看到 */
+.bg-note.coverage-severe {
+  border-color: var(--danger-border);
+  border-left-color: var(--danger-text);
+  background: var(--danger-bg);
+}
+
+.bg-note.coverage-severe .usage {
+  color: #7a4b43;
+}
+
+.bg-sample {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bg-sample:last-child {
+  border-bottom: none;
+}
+
+.bg-sample code {
+  color: var(--text-faint);
+  line-height: 1.55;
+  word-break: break-all;
+}
+
+/* ---- 排版阶梯 ---- */
+.type-step {
+  display: flex;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+/* 字号数字用等宽字体。这一列要对齐着往下读，比例字体做不到 */
+.type-size {
+  width: 52px;
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  padding-top: 1px;
+}
+
+.type-size span {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-faint);
+  margin-left: 1px;
+}
+
+.type-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.type-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.type-meta {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+/* ---- 字体族 ---- */
+.font-row {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.font-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.font-name {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.font-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 3px;
+}
+
+/* ---- 替代字体栈 ---- */
+.fallback {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: var(--bg-sunken);
+  margin-bottom: 8px;
+}
+
+.fallback .usage {
+  margin: 0 0 6px;
+}
+
+/* 整段一次性选中，方便直接复制粘贴到样式表里 */
+.stack {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text);
+  word-break: break-all;
+  user-select: all;
+}
+
+/* ---- 关键布局参数 ---- */
+.spec {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.spec-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.spec-row:last-child {
+  border-bottom: none;
+}
+
+.spec-key {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+/* 数值列右对齐并统一用等宽字体，几行数字能对齐着往下读 */
+.spec-val {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.spec-meta {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/* 参数表下面的来源说明。和表格拉开距离，避免被读成表格的一部分 */
+.spec + .usage {
+  margin: 7px 0 12px;
+  padding: 0 2px;
+}
+
+/* ---- 间距档位 ---- */
+.space-step {
+  display: flex;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+/* 间距值这一列比字号那列宽一点，四位数（比如 1024）也放得下 */
+.space-value {
+  width: 56px;
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  padding-top: 1px;
+}
+
+.space-value span {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-faint);
+  margin-left: 1px;
+}
+
+.space-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.space-head {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.space-meta {
+  font-size: 10px;
+  color: var(--text-faint);
+  margin-left: auto;
+}
+
+/* ---- 圆角档位 ---- */
+.radius-list {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.radius-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.radius-row:last-child {
+  border-bottom: none;
+}
+
+.radius-val {
+  flex: none;
+  width: 52px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.radius-desc {
+  min-width: 0;
+  flex: 1;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.radius-count {
+  flex: none;
+  color: var(--text-faint);
+}
+
+/* ---- 圆角、边框与投影 ---- */
+.effect-list {
+  margin-bottom: 8px;
+}
+
+/* 三行一列的对齐方式：类型名固定宽、数值固定宽、出现次数右对齐。
+   这几列要能顺着往下读，右对齐后数字的位也能对上 */
+.effect-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+.effect-kind {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.effect-val {
+  flex: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.effect-extra {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.effect-count {
+  flex: none;
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+/* 表格行下面的说明。缩进和行内文字对齐，读起来是一段注解而不是新的一行参数 */
+.effect-list .usage {
+  margin: -2px 0 10px;
+  padding: 0 10px;
+}
+
+/* ---- 组件 ---- */
+.comp {
+  margin-bottom: 14px;
+}
+
+.comp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.comp-name {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* 组件参数表下面的投影串和说明，与表格拉开一点距离 */
+.comp .stack {
+  margin-top: 7px;
+  padding: 7px 9px;
+  background: var(--bg-sunken);
+  border-radius: 6px;
+}
+
+.comp .usage {
+  margin-top: 6px;
+}
+
+/* ---- 折叠区 ---- */
+details {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+summary:hover {
+  color: var(--text);
+}
+
+.discard-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.discard-row .merged-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.discard-reason {
+  color: var(--text-faint);
+  margin-left: auto;
+  text-align: right;
+}
+
+.foot {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-faint);
+  line-height: 1.6;
+}
+
+button.retry {
+  margin-top: 12px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button.retry:hover {
+  background: var(--bg-sunken);
+}
+
+/* ---- 溯源：可点的 token 行 ---- */
+
+/*
+ * 一行能不能点，只看它有没有 .tk。这个类由渲染时的 tokAttr 决定，和行上
+ * 那个 data-tok 属性同进同出，所以样式不需要逐个类去列，往后加一类可点
+ * 行也不会漏掉这里。
+ *
+ * 悬停用一层极浅的强调色而不是 bg-sunken。后者在整页里到处都是，拿它做
+ * 悬停等于什么都没说。
+ */
+.tk {
+  cursor: pointer;
+}
+
+.tk:hover {
+  background: var(--hover);
+}
+
+/* 正文说明跟在行里，行亮起来的时候也让它跟着清楚一点，
+   否则一整行里只有一小块变色，看着像没点准 */
+.tk:hover .usage,
+.tk:hover .font-meta,
+.tk:hover .discard-reason,
+.tk:hover .radius-desc {
+  color: var(--text);
+}
+
+/* 色点自己的底色是内联写死的那个色值，换背景色对它没用，
+   改用一圈外发光来表达可点 */
+.merged-dot.tk:hover {
+  box-shadow: 0 0 0 2px var(--hover-ring);
+}
+
+/* chip 自己带底色，悬停要压过它 */
+.chip.tk:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+
+/* ---- 溯源状态条 ---- */
+
+/*
+ * 贴在面板底部的一条常驻信息。
+ *
+ * 用 sticky 而不是 fixed。面板底部还压着内容，fixed 会永久盖住它；sticky
+ * 占着版面，滚到底时自然落位，中间不遮任何东西。
+ *
+ * 它和弹窗时代的地位不一样了。那时弹窗一失焦就被销毁，用户点完 token 转头
+ * 去看页面，回来这条就没了，所以权威读数只能印在页面那张浮层卡上，这里只是
+ * 一份镜像。侧边栏不会失焦消失，这一条一直在原处，用户回来看得到，它才真正
+ * 成了能用的读数。
+ */
+.prove {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  margin: 14px -16px -18px;
+  padding: 9px 16px 10px;
+  background: #fbfbfa;
+  border-top: 1px solid var(--border-strong);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+  font-size: 11px;
+}
+
+.prove[hidden] {
+  display: none;
+}
+
+/* 页面刷新过、注入失败这一类：一处都没描上，整个条换成警示色 */
+.prove-bad {
+  background: var(--danger-bg);
+  border-top-color: var(--danger-border);
+}
+
+.prove-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.prove-title {
+  font-weight: 600;
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 总数是这一条上最该被看到的数字，等宽加粗让它单独站住 */
+.prove-total {
+  flex: none;
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.prove-x {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.prove-x:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.prove-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 5px;
+}
+
+.prove-group {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 色点和页面上那一圈描边是同一个色值，靠它对上「这条渠道是哪种颜色」 */
+.prove-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: baseline;
+}
+
+.prove-detail,
+.prove-mix {
+  margin-top: 4px;
+  color: var(--text-faint);
+}
+
+.prove-warns {
+  margin-top: 5px;
+}
+
+.prove-warn {
+  color: var(--danger-text);
+  line-height: 1.5;
+}
+
+.prove-acts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.prove-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.prove-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.prove-hint {
+  color: var(--text-faint);
+  margin-left: 2px;
+}

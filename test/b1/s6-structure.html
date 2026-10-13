@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 · S6 结构边界：框架、影子树、画布</title>
+<style>
+  /*
+   * 这一页压的是「内容不在主文档树里」这条边界。同一条边界上有四种不同的
+   * 情况，可读性完全不一样，混在一起看最容易误判，所以每种单独放一块。
+   *
+   *   同源框架（srcdoc）    继承父文档的来源，内容读得到
+   *   同源文件框架          受 file:// 的来源隔离影响，两种打开方式结果不同
+   *   跨域框架              读不到，只能计数
+   *   影子树                读不到。这是当前实现的一个已知缺口，下面说清
+   *   画布与内联 SVG        内容不在样式系统里，颜色取不到，属于设计如此
+   *
+   * 每一块都配一个全页唯一的颜色，验收就变成查颜色在不在色板里。
+   *
+   * 关于影子树这条缺口，需要说清楚：采集靠 querySelectorAll('*') 遍历文档树，
+   * 而影子树的内容不在这个遍历范围内，所以用 Web Components 搭的页面
+   * （现代组件库越来越常见）会有一整片内容采不到，而且目前界面上没有任何
+   * 提示说这件事。这一页把它摆出来，是为了不要把它当成「已经覆盖」。
+   */
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #ffffff;
+    color: #1f1f1c;
+    font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 36px 24px 80px; }
+  h1 { font-size: 28px; margin: 0 0 10px; }
+  h2 { font-size: 17px; margin: 30px 0 10px; }
+  p { color: #4a4a46; margin: 0 0 12px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 5px;
+    margin-right: 8px;
+  }
+  .yes { background: #dcfce7; color: #166534; }
+  .no  { background: #fee2e2; color: #991b1b; }
+
+  .control { background: #0891b2; color: #ffffff; padding: 12px 16px; border-radius: 10px; }
+
+  iframe { border: 1px solid #d4d4d0; border-radius: 8px; width: 100%; }
+  .frame-slot { margin: 10px 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>结构边界：框架、影子树、画布</h1>
+  <p>这一页只有下面这个青色的块是普通主文档内容，它的颜色 #0891b2 必须出现在色板里，
+  用来证明整页不是全都没采到。其余每一块都对应一种「内容不在主文档树里」的情况，
+  每块都带一个全页唯一的颜色，颜色在不在色板里就是判据。</p>
+
+  <div class="control">主文档里的对照组，颜色 #0891b2，预期出现在色板里。</div>
+
+  <h2><span class="tag yes">应当读入</span>同源框架（srcdoc）</h2>
+  <p>srcdoc 写的框架继承父文档的来源，按设计是可以读进去的。里面的柠檬绿 #a3e635 预期出现在色板里。</p>
+  <div class="frame-slot">
+    <iframe srcdoc="&lt;style&gt;body{margin:0;font:15px sans-serif}.b{background:#a3e635;color:#1f2937;padding:18px 16px}&lt;/style&gt;&lt;div class=&quot;b&quot;&gt;框架里的内容，柠檬绿 #a3e635&lt;/div&gt;" height="90" title="srcdoc 框架"></iframe>
+  </div>
+
+  <h2><span class="tag yes">观察点</span>同源文件框架（同一个目录）</h2>
+  <p>下面这个框加载的是同目录下的另一个本地文件。它是不是读得到，取决于这一页是怎么打开的：
+  用 http 起本地服务器打开时属于同源，能读；直接双击用 file:// 打开时，Chrome 把每个本地文件
+  当成独立的来源，读不到。两种结果都能接受，但要知道自己看到的是哪一种。</p>
+  <div class="frame-slot">
+    <iframe src="s2-bare.html" height="120" title="同目录文件框架"></iframe>
+  </div>
+
+  <h2><span class="tag no">读不到</span>跨域框架</h2>
+  <p>下面这个框指向外部站点，属于跨域，浏览器禁止扩展读里面的内容。它只会被计数，不会被采集。
+  这一条需要联网，不联网时框架是空的，结论一样是读不到。</p>
+  <div class="frame-slot">
+    <iframe src="https://example.com" height="120" title="跨域框架"></iframe>
+  </div>
+
+  <h2><span class="tag no">读不到（已知缺口）</span>影子树</h2>
+  <p>下面这个紫色块是脚本挂进影子树的。采集走的是文档树遍历，进不去影子树，
+  所以 #8b5cf6 预期不出现。当前实现对此没有任何提示，用组件库搭的页面会有整片内容
+  静默缺失——这一条是如实记录的短板，不是待办。</p>
+  <div id="shadow-host"></div>
+
+  <h2><span class="tag no">取不到颜色</span>画布与内联 SVG</h2>
+  <p>画布上的红色是脚本画出来的像素，内联 SVG 的绿色写在 fill 属性上。两者都不在
+  背景色、文字色、边框这三条颜色通道里，所以 #ff0000 和 #22c55e 都不该出现。
+  这是设计如此，不是遗漏：它们的可见颜色无法从声明值推导。</p>
+  <p>
+    <canvas id="paint" width="240" height="140"></canvas>
+    <svg width="160" height="100" role="img" aria-label="绿色方块">
+      <rect width="160" height="100" fill="#22c55e"></rect>
+    </svg>
+  </p>
+
+  <h2><span class="tag yes">应当说明</span>内嵌 PDF</h2>
+  <p>下面嵌了一个声明为 PDF 的文档。它由浏览器内置阅读器渲染，颜色读不到，
+  但结果里应当有一句说明，指出这一处不在色板覆盖范围内。</p>
+  <div class="frame-slot">
+    <object type="application/pdf" data="about:blank" width="320" height="160"></object>
+  </div>
+
+</div>
+
+<script>
+  // 影子树：宿主本身在主文档里，内容在影子根里
+  (function () {
+    var host = document.getElementById('shadow-host');
+    var root = host.attachShadow({ mode: 'open' });
+    root.innerHTML =
+      '<style>' +
+      '.b{background:#8b5cf6;color:#ffffff;padding:18px 16px;border-radius:10px;font:16px sans-serif}' +
+      '</style>' +
+      '<div class="b">影子树里的内容，紫色 #8b5cf6</div>';
+  })();
+
+  // 画布：画一个红色实心块
+  (function () {
+    var c = document.getElementById('paint');
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(0, 0, 240, 140);
+  })();
+</script>
+</body>
+</html>

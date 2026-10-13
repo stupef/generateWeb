@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>B1 · S4 声明写法边界</title>
+<style>
+  /*
+   * 这一页压的是「同一个视觉结果，写法千变万化」这条边界。
+   *
+   * 采集层读的是 getComputedStyle，也就是浏览器算完之后的值。算完之后的
+   * 颜色一律是 rgb()/rgba()，长度一律是 px（相对单位会先算成 px）。
+   * 所以核心期望只有一条：
+   *
+   *    写法不影响结果。同一个颜色用七种写法写，结果里只应当出现一条角色。
+   *
+   * 围着这一条，几个具体的边界：
+   *    · 三位十六进制 #36f、八位 #3366ffff、rgb() 空格与斜杠写法、
+   *      逗号写法、hsl()、具名色、transparent、currentColor
+   *    · 简写与单边写法：border、border-left、font 简写、margin 四值
+   *    · 相对单位：rem / em / % / vw / clamp()
+   *    · CSS 变量与变量缺省值
+   *    · !important 覆盖、内联样式覆盖
+   *
+   * 第一组那七种写法是刻意挑的，它们在数值上完全相等，都等于 #3366ff：
+   * 三位缩写每位数翻倍是 #3366ff，hsl(225 100% 60%) 算出来也是
+   * (51, 102, 255)。所以这一组的判定很干净——结果里这个蓝只该有一条，
+   * 出现两条以上就说明某一种写法被算成了别的颜色。
+   *
+   * 这一页不负责圆角那条验收线（那是 B5）。这里的两个圆角写法只是顺带
+   * 放着的：含百分比的圆角算不出确定像素值，采集层会直接跳过；9999px
+   * 属于胶囊量级，会被归一。两者都不该导致报错。
+   */
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: #ffffff;
+    color: #1f1f1c;
+    /* font 简写：粗细 字号/行高 字体族 */
+    font: 400 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  h1 { font-size: 1.75rem; margin: 0 0 8px; }
+  h2 { font-size: 1.15rem; margin: 40px 0 12px; }
+  p { margin: 0 0 14px; color: #4a4a46; }
+
+  /* 变量：一个定义在根上，一个引用不存在的变量并给了缺省值 */
+  :root {
+    --brand: #0ea5e9;
+  }
+  .use-var { color: var(--brand); }
+  .use-var-fallback { color: var(--not-defined, #f97316); }
+
+  .swatch {
+    display: inline-block;
+    width: 76px;
+    height: 40px;
+    border-radius: 8px;
+    vertical-align: middle;
+    margin: 0 8px 8px 0;
+  }
+
+  /* ---------- 七种写法，指的是同一个颜色 #3366ff ---------- */
+  .hex3 { background: #36f; }
+  .hex6 { background: #3366ff; }
+  .hex8 { background: #3366ffff; }
+  .rgb-space { background: rgb(51 102 255); }
+  .rgb-slash { background: rgb(51 102 255 / 100%); }
+  .rgb-comma { background: rgba(51, 102, 255, 1); }
+  .hsl { background: hsl(225 100% 60%); }
+
+  /* 具名色：各自是一种颜色，不是上面那个蓝的别名 */
+  .named { background: rebeccapurple; }
+  .named2 { background: deepskyblue; }
+
+  /* transparent 与 currentColor */
+  .transparent { background: transparent; border: 1px solid #d4d4d0; }
+  .current-color { background: currentColor; color: #7c3aed; }
+
+  /* 简写与单边 */
+  .shorthand { border: 2px dashed #ef4444; padding: 10px 14px; }
+  .one-side { border-left: 6px solid #10b981; padding: 10px 14px; }
+
+  /* 四值 margin，混着三种单位 */
+  .margins {
+    margin: 1rem 2em 12px 4%;
+    background: #f4f4f1;
+    padding: 12px;
+  }
+
+  /* !important 覆盖下面那条类规则 */
+  .important { background: #e11d48 !important; }
+  .important { background: #94a3b8; }
+
+  /* 相对单位与函数 */
+  .size-rem { font-size: 1.25rem; }
+  .size-em { font-size: 1.5em; }
+  .size-pct { font-size: 120%; }
+  .size-vw { font-size: 2.4vw; }
+  .size-clamp { font-size: clamp(14px, 1.4vw, 20px); }
+
+  /* 圆角的两种边界写法 */
+  .radius-pct { background: #334155; border-radius: 50%; width: 72px; height: 72px; }
+  .radius-pill { background: #334155; border-radius: 9999px; padding: 8px 18px; color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>声明写法边界</h1>
+  <p>同一个视觉结果可以有很多种写法。下面每一组里，写法不同的东西视觉上是一样的，
+  插件报出来的值应当只有一份。</p>
+
+  <h2>1 · 同一个蓝色 #3366ff 的七种写法</h2>
+  <p>
+    <span class="swatch hex3" title="#36f"></span>
+    <span class="swatch hex6" title="#3366ff"></span>
+    <span class="swatch hex8" title="#3366ffff"></span>
+    <span class="swatch rgb-space" title="rgb(51 102 255)"></span>
+    <span class="swatch rgb-slash" title="rgb(51 102 255 / 100%)"></span>
+    <span class="swatch rgb-comma" title="rgba(51, 102, 255, 1)"></span>
+    <span class="swatch hsl" title="hsl(225 100% 60%)"></span>
+  </p>
+  <p>期望：结果里这个蓝只占<b>一条</b>颜色角色。变成两条以上，就说明某种写法被算成了别的颜色。
+  上面七个方块从左到右依次是 #36f、#3366ff、#3366ffff、rgb 空格、rgb 斜杠、rgba 逗号、hsl。</p>
+
+  <h2>2 · 具名色</h2>
+  <p>
+    <span class="swatch named"></span>
+    <span class="swatch named2"></span>
+  </p>
+  <p>左边是 rebeccapurple（#663399），右边是 deepskyblue（#00bfff）。两者都应当按实际十六进制统计，
+  而不是把关键字原样带出来。它们是两种独立的颜色，不是第 1 组那个蓝的别名。</p>
+
+  <h2>3 · transparent 与 currentColor</h2>
+  <p>
+    <span class="swatch transparent"></span>
+    <span class="swatch current-color"></span>
+  </p>
+  <p>透明的方块不该作为一个颜色出现。currentColor 那个方块实际渲染成紫色 #7c3aed，
+  应当按紫色统计，而不是按 currentColor 这个关键字。</p>
+
+  <h2>4 · 变量与变量缺省值</h2>
+  <p><span class="use-var">这一段用变量 --brand，实际是 #0ea5e9。</span>
+  <span class="use-var-fallback">这一段引用了一个不存在的变量，落到缺省值 #f97316。</span></p>
+  <p>期望：两个颜色都出现在结果里。计算样式里变量已经被替换掉，页面上看不到 var() 这个词。</p>
+
+  <h2>5 · 简写与单边</h2>
+  <p class="shorthand">四边 2px 虚线 #ef4444。写成简写，算完会展开成四边，统计时仍应算一个元素。</p>
+  <p class="one-side">只有左边 6px 实线 #10b981，其余三边没有。</p>
+  <p class="margins">四值 margin 混着 rem / em / px / %。在 900 宽的容器里，上右下左分别是
+  16px / 32px / 12px / 36px。</p>
+
+  <h2>6 · !important 与覆盖</h2>
+  <p class="important" style="padding:10px 14px">这一段的背景写了两次，!important 那条是 #e11d48，
+  最终生效的也是它。下面还有一个内联样式在覆盖类规则：<span style="background:#facc15;padding:2px 8px">内联 #facc15 生效</span>。</p>
+
+  <h2>7 · 相对单位</h2>
+  <p class="size-rem">1.25rem，在根字号 16 下算出来是 20px。</p>
+  <p class="size-em">1.5em，在父级字号 16 下算出来是 24px。</p>
+  <p class="size-pct">120%，算出来是 19.2px。这个值离 18.4 只差 4%，会被并进相邻那一档，
+  而不是单独立一档。</p>
+  <p class="size-vw">2.4vw，随窗口宽度变。这正是「必须声明采样视口宽度」的理由。</p>
+  <p class="size-clamp">clamp(14px, 1.4vw, 20px)，在 1440 宽下会落在中段的 20px。</p>
+
+  <h2>8 · 圆角的两种边界写法</h2>
+  <p>
+    <span class="radius-pct"></span>
+    <span class="radius-pill">9999px</span>
+  </p>
+  <p>含百分比的圆角算不出确定的像素值，采集层会直接跳过它，所以左边那个圆的圆角在统计里会缺席。
+  9999px 属于胶囊量级，会被归一。两者都只是不该导致报错，具体判定归圆角那条验收线管。</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B4 验收 · 间距与布局</title>
+<style>
+  /*
+   * 这一页是给「间距与布局」这条线做验收用的，所有值都是刻意摆的。
+   *
+   * 三条安排：
+   *   一、所有间距都落在 4 的倍数上，另外放三个不是 4 倍数的值各一次，
+   *       它们应当出现在「已过滤的不规律间距」里，不进档位。
+   *   二、内容宽度统一 1200，用两处 max-width 互相印证。
+   *   三、区块间距 64、卡片间距 24、控件间距 8，三层分开，互不重叠。
+   *
+   * 建议在窗口宽度 1440 以上打开，窄窗口下内容会被视口截断，
+   * 内容宽度会读成窗口宽度而不是 1200。
+   */
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #1f1f1c;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  /* 居中用外层 flex，不用 margin: auto。
+     自动外边距在被浏览器解析后是一段真实像素值，分析层读到的会是一个
+     随视口变化的「间距档位」（1440 视口下是 120），而它不是设计值。 */
+  .center {
+    display: flex;
+    justify-content: center;
+  }
+
+  /* 内容容器。同一个 max-width 出现两处，互相印证整页的内容宽度 */
+  .shell {
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 24px;
+  }
+
+  /* ---------- 顶部导航：控件间距 8 ---------- */
+  .top {
+    border-bottom: 1px solid #e8e8e6;
+  }
+
+  .top-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 24px;
+  }
+
+  .top-inner a {
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: #4a4a46;
+    text-decoration: none;
+  }
+
+  .top-inner .brand {
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  .top-inner .cta {
+    margin-left: auto;
+    padding: 8px 24px;
+    border-radius: 999px;
+    background: #1f1f1c;
+    color: #ffffff;
+  }
+
+  /* ---------- 区块之间：64 ----------
+     这一档是整页的呼吸节奏。8 和 24 都够不到它。 */
+  .sections {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    padding: 48px 0;
+  }
+
+  h1 { font-size: 40px; line-height: 48px; margin: 0 0 16px; }
+  h2 { font-size: 24px; line-height: 32px; margin: 0 0 16px; }
+  h3 { font-size: 18px; line-height: 26px; margin: 0 0 8px; }
+  p  { margin: 0 0 16px; color: #4a4a46; }
+
+  /* ---------- 卡片：之间 24，内边距上下 20 左右 24 ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .card {
+    padding: 20px 24px;
+    border: 1px solid #e8e8e6;
+    border-radius: 8px;
+    background: #fafafa;
+  }
+
+  .card p { margin: 0; }
+
+  /* ---------- 表单：字段间距 8，输入框内边距 12 ---------- */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .field input {
+    padding: 12px;
+    border: 1px solid #d8d8d4;
+    border-radius: 4px;
+    font-size: 16px;
+    font-family: inherit;
+  }
+
+  /* ---------- 按钮：控件内边距 8 / 16，主按钮走胶囊 ---------- */
+  .actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  button {
+    padding: 8px 16px;
+    border: 1px solid #d8d8d4;
+    border-radius: 4px;
+    background: #ffffff;
+    font-size: 16px;
+    font-family: inherit;
+  }
+
+  /* 胶囊圆角。和顶部的 CTA 是同一档，两处印证才立得住一个圆角档位 */
+  button.pill {
+    padding: 8px 24px;
+    border-radius: 999px;
+    background: #1f1f1c;
+    color: #ffffff;
+    border-color: #1f1f1c;
+  }
+
+  /* ---------- 大卡片：内边距 32，圆角 12 ---------- */
+  .panel {
+    padding: 32px;
+    border-radius: 12px;
+    background: #f2f2ef;
+  }
+
+  .panel p:last-child { margin: 0; }
+
+  /* ---------- 不规律间距取样 ----------
+     13 / 17 / 23 都不是 4 的倍数，而且各只出现一次。
+     它们应当被挡在档位之外，在「已过滤的不规律间距」里能看到。 */
+  .odd {
+    display: flex;
+    gap: 16px;
+  }
+
+  .odd div {
+    border: 1px solid #e8e8e6;
+    border-radius: 12px;
+    background: #fafafa;
+    font-size: 13px;
+  }
+
+  .odd .o13 { padding: 13px; }
+  .odd .o17 { padding: 17px; }
+  .odd .o23 { padding: 23px; }
+
+  /* ---------- 页脚：同样用 64 分块 ---------- */
+  .footer {
+    border-top: 1px solid #e8e8e6;
+    color: #6b6a64;
+  }
+
+  .footer-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    padding: 48px 0;
+  }
+
+  .footer-stack p { margin: 0; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="center">
+    <div class="shell">
+      <div class="top-inner">
+        <span class="brand">Acme</span>
+        <a href="#">产品</a>
+        <a href="#">定价</a>
+        <a href="#">文档</a>
+        <a href="#">关于</a>
+        <a href="#" class="cta">开始使用</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="center">
+  <div class="shell">
+    <div class="sections">
+
+      <section>
+        <h1>间距与布局验收样本</h1>
+        <p>这一页的所有间距都落在 4 的倍数上，整页的内容宽度是 1200。下面每一块都在演示一个具体的参数。</p>
+      </section>
+
+      <section>
+        <h2>卡片网格</h2>
+        <p>三列网格，卡片之间 24px。卡片的左右内边距 24，上下 20，圆角 8。</p>
+        <div class="cards">
+          <div class="card"><h3>第一张</h3><p>卡片内边距和列表项间距通常落在同一档上。</p></div>
+          <div class="card"><h3>第二张</h3><p>圆角按控件和容器的层级分开，不要都是一个值。</p></div>
+          <div class="card"><h3>第三张</h3><p>卡片之间的间距要明显大于卡片内部，层级才立得住。</p></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>表单与按钮</h2>
+        <p>字段之间 8，输入框内边距 12、圆角 4。主按钮走胶囊圆角，次级按钮用 4。</p>
+        <div class="field">
+          <label>邮箱</label>
+          <input type="email" placeholder="you@example.com">
+        </div>
+        <div class="actions">
+          <button class="pill">查看文档</button>
+          <button>了解更多</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="panel">
+          <h2>大卡片</h2>
+          <p>这个面板内边距 32，圆角 12，用来和上面 24 / 8 的组合拉开层级。
+          32 这一档在整页只出现一次，所以它不会被收进间距档位，而是出现在已过滤列表里。</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>不规律间距取样</h2>
+        <p>下面三个元素的内边距分别是 13、17、23，都不是 4 的倍数，也各只出现一次。
+        它们应当出现在「已过滤的不规律间距」里，而不是间距档位里。</p>
+        <div class="odd">
+          <div class="o13">13px</div>
+          <div class="o17">17px</div>
+          <div class="o23">23px</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="center">
+    <div class="shell">
+      <div class="footer-stack">
+        <div>
+          <h3>关于我们</h3>
+          <p>这一段和下一段之间用的是 64px，和主内容区同一个节奏。</p>
+        </div>
+        <div>
+          <h3>联系方式</h3>
+          <p>页脚同样按 64px 分块，这样整页的区块节奏只有一个值。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
