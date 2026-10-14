@@ -563,7 +563,7 @@ function overviewSection(exported: SampleExport, prose: AiSemantics | null): str
  * 事实和形容分开摆，读的人清楚哪一半是测出来的、哪一半是推断出来的。
  */
 function colorsSection(exported: SampleExport, prose: AiSemantics | null): string {
-  const { roles, isDark } = exported.analysis.colors;
+  const { roles, isDark, canvasHex } = exported.analysis.colors;
   if (roles.length === 0) return '';
 
   const body: string[] = [
@@ -571,6 +571,18 @@ function colorsSection(exported: SampleExport, prose: AiSemantics | null): strin
       `token 名按用途定，不按色相定，复刻时优先改值而不是改用途。`,
     '',
   ];
+
+  // 底色和文档画布不一致时必须说清楚。读的人只要去 body 上看一眼背景色，
+  // 就会发现两个值对不上，不说的话会直接当成工具报错。
+  const documentCanvas = exported.page.documentCanvasColor;
+  if (documentCanvas && upperHex(documentCanvas) !== upperHex(canvasHex)) {
+    body.push(
+      `页面底色取自首屏里绘制面积最大的表面。文档 body 上声明的是 ${upperHex(documentCanvas)}，` +
+        `首屏被整屏的色块盖住，肉眼看到的是 ${upperHex(canvasHex)}，` +
+        `下面所有对比度都以后者为基准。`,
+    );
+    body.push('');
+  }
 
   for (const r of roles) {
     body.push(`- **\`${r.token}\` (${upperHex(r.hex)})**　${r.usage}`);
@@ -580,8 +592,9 @@ function colorsSection(exported: SampleExport, prose: AiSemantics | null): strin
   // 逐条对照 token 名，模型补的那些名字一定在 roles 里，校验端已经筛过一遍。
   // 这里再兜一次是因为 roles 才是权威名单，模型的键万一漂了就静默跳过
   if (prose) {
+    const proseColors = prose.added?.colors ?? prose.colors;
     const notes = roles
-      .map((r) => ({ token: r.token, text: prose.colors[r.token] }))
+      .map((r) => ({ token: r.token, text: proseColors[r.token] }))
       .filter((x): x is { token: string; text: string } => typeof x.text === 'string' && x.text.length > 0);
 
     if (notes.length > 0) {
@@ -777,7 +790,8 @@ function componentsSection(exported: SampleExport, prose: AiSemantics | null): s
   for (const spec of specs) {
     body.push(`### \`${componentKey(spec)}\``);
     body.push(spec.usage);
-    const extra = prose?.components[componentKey(spec)];
+    const proseComponents = prose?.added?.components ?? prose?.components;
+    const extra = proseComponents ? proseComponents[componentKey(spec)] : undefined;
     if (typeof extra === 'string' && extra.length > 0) {
       body.push('');
       body.push(extra);

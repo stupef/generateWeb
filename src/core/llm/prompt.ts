@@ -20,6 +20,7 @@
  */
 import type { DesignBrief } from './brief';
 import { briefToJson } from './brief';
+import { CURSOR_EXAMPLE, MERCURY_EXAMPLE } from './examples';
 
 /**
  * 提示词版本。
@@ -27,7 +28,7 @@ import { briefToJson } from './brief';
  * 跟着产出走一遍，是为了在事后排查「为什么同一份页面两次结果差这么多」时
  * 能区分是换了提示词还是换了模型。它不进生成的文件，只在设置页的诊断信息里。
  */
-export const PROMPT_VERSION = 'v1';
+export const PROMPT_VERSION = 'v2';
 
 export function systemPrompt(): string {
   return [
@@ -42,9 +43,19 @@ export function systemPrompt(): string {
     '    需要表达程度时用「最大的一级」「略小一档」这类相对说法。',
     '二、不许出现半角花括号，这两个字符在这份文件里有特定含义。',
     '三、不许出现以井号开头的行，也不许出现单独一行的三个连字号，它们会被当成文件结构。',
-    '四、不要复述输入里已经写好的 recorded 字段，那些内容会原样保留。',
-    '    你只补充它没有说到的信息：这套设计为什么这样组织、复刻时最容易在哪里走样。',
+    '四、输入里每个颜色和组件都带有一段 recorded 字段，那些内容会原样保留。',
+    '    你只通过一个 added 字段追加它们没覆盖到的角度：这套设计为什么这样组织、',
+    '    复刻时最容易在哪里走样。不要改写 recorded。',
     '五、只输出一个 JSON 对象。不要解释，不要前后加话，不要用代码围栏包起来。',
+    '',
+    '## 风格示例',
+    '下面是两份剥离了具体数值的示例，只供你学习描述方式。',
+    '注意：示例里的 token 名（如 parchment、ember）只是示例，不是本次输入的 token 名。',
+    '本次输出必须严格使用上面简报里给出的 token 名。',
+    '',
+    CURSOR_EXAMPLE,
+    '',
+    MERCURY_EXAMPLE,
     '',
     '行文要求：中文，直白，具体，写给「照着这份文件复刻这套设计」的人看。',
     '不要用「现代感」「高级」「恰到好处」这类说了等于没说的形容。',
@@ -69,17 +80,18 @@ export function userPrompt(brief: DesignBrief): string {
   lines.push('summary　整体风格综述，两三句话。说清这套设计的倾向，是靠留白、靠字号落差、');
   lines.push('　　　　 还是靠色阶来拉开层次，视觉重心落在哪里。');
 
+  lines.push('');
+  lines.push('added　一个对象，只补 brief 里已经列出的颜色/组件中、recorded 字段没有说到的角度。');
   if (hasColors) {
-    lines.push('');
-    lines.push('colors　一个对象，键是 colors 数组里的 token 名，值是这个颜色的语义角色');
-    lines.push('　　　　 和使用边界。说明它在整套配色里承担什么职责，什么场合该用、什么场合不该用。');
+    lines.push('　　　added.colors　键必须来自上面的 colors 数组，值是这个颜色的语义角色和使用边界。');
+    lines.push('　　　　　　　　　  说明它在整套配色里承担什么职责，什么场合该用、什么场合不该用。');
   }
-
   if (hasComponents) {
-    lines.push('');
-    lines.push('components　一个对象，键是 components 数组里的 key，值是这类组件的形态特征');
-    lines.push('　　　　 与复刻时的注意点。');
+    lines.push('　　　added.components　键必须来自上面的 components 数组，值是这类组件的形态特征');
+    lines.push('　　　　　　　　　　　  与复刻时的注意点。');
   }
+  lines.push('　　　输入里每个颜色/组件都有一段 recorded 字段，会原样保留进文件，你不需要重复它，');
+  lines.push('　　　只写 recorded 没覆盖到的部分。');
 
   lines.push('');
   lines.push('guidelines　一个字符串数组，最多四条。写复刻这套设计时最容易犯的错，');

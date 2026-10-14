@@ -51,8 +51,8 @@ export interface LlmConfig {
  */
 export interface LlmSettings {
   config: LlmConfig;
-  /** 提取完成后自动做一次补全。关掉就只在手动点按钮时调用 */
-  auto: boolean;
+  /** 是否打开 LLM 提取。关闭时走本地规则路径，开启时走 LLM skill 路径 */
+  useLlm: boolean;
   /** 上次保存的时刻，界面上用来显示「已保存」。ISO 字符串，没存过为 null */
   savedAt: string | null;
 }

@@ -41,7 +41,7 @@ import {
   tokAttr,
   toggle as toggleHighlight,
 } from './provenance-strip';
-import { renderDesignMd, DESIGN_MD_FILENAME } from '@/core/design-md';
+import { DESIGN_MD_FILENAME } from '@/core/design-md';
 import { describeKinds } from '@/core/kinds';
 import {
   buildSampleExport,
@@ -51,10 +51,6 @@ import {
   type ExportViewport,
   type SampleExport,
 } from '@/core/export';
-import { buildDesignBrief, knownKeysOf } from '@/core/llm/brief';
-import { buildPrompt } from '@/core/llm/prompt';
-import { callModel } from '@/core/llm/client';
-import { adapterOf } from '@/core/llm/providers';
 import { settingsReady } from '@/core/llm/config';
 import {
   nextAction,
@@ -64,12 +60,9 @@ import {
   type OriginState,
 } from '@/core/llm/notice';
 import { hasOriginPermission, loadLlmSettings } from '@/core/settings';
-import {
-  parseSemantics,
-  summarizeIssues,
-  type AiSemantics,
-  type SemanticsIssue,
-} from '@/core/semantics';
+import { summarizeIssues, type AiSemantics, type SemanticsIssue } from '@/core/semantics';
+import { renderRuleOnly, renderWithProse, renderWithSkill } from '@/core/pipeline';
+import { LlmExtractSkill, localSkill } from '@/core/skills';
 import type { LlmFailure, LlmSettings } from '@/core/llm/types';
 import type { PageSample } from '@/core/types';
 import './style.css';
@@ -204,7 +197,7 @@ let artifacts: Artifacts | null = null;
 
 function publishArtifacts(exported: SampleExport, prose: AiSemantics | null): void {
   artifacts = {
-    designMd: renderDesignMd(exported, prose),
+    designMd: renderWithProse(exported, prose),
     json: serializeExport(exported),
     jsonName: exportFileName(exported),
   };
@@ -343,70 +336,77 @@ function bindAiNote(): void {
 
 let aiAbort: AbortController | null = null;
 
-async function enhanceWithAi(exported: SampleExport, settings: LlmSettings): Promise<void> {
+async function enhanceWithAi(
+  sample: PageSample,
+  ruleExported: SampleExport,
+  settings: LlmSettings,
+  dropped: boolean,
+): Promise<void> {
   const model = settings.config.model;
   // 失败之后要能就地再试一次。配错 Key 再改、额度刚充上、刚才只是网络抖了一下，
   // 这几种情况都只差一次重试，让用户为此去设置页绕一圈没有道理
-  pendingAction = () => void enhanceWithAi(exported, settings);
+  pendingAction = () => void enhanceWithAi(sample, ruleExported, settings, dropped);
 
   setOrigin(
     'pending',
-    noteLine(`正在调用 ${model} 补全语义内容。下面这份是本地生成版，此刻已经可以直接导出。`, true),
+    noteLine(`正在调用 ${model} 从页面采样生成 DESIGN.md。下面这份是本地生成版，此刻已经可以直接导出。`, true),
   );
 
   aiAbort = new AbortController();
-  const adapter = adapterOf(settings.config.protocol);
-  const { system, user } = buildPrompt(buildDesignBrief(exported));
+  const skill = new LlmExtractSkill(settings);
 
-  const outcome = await callModel(adapter, settings.config, system, user, {
-    hasPermission: hasOriginPermission,
-    signal: aiAbort.signal,
-  });
+  const { md, run } = await renderWithSkill(sample, skill, ruleExported, aiAbort.signal);
   aiAbort = null;
 
-  if (!outcome.ok) {
-    setOrigin('fallback', failureNote(outcome.failure));
+  if (run.failure) {
+    setOrigin('fallback', failureNote(run.failure));
     return;
   }
 
-  const result = parseSemantics(outcome.value.text, model, knownKeysOf(exported));
+  // 当前阶段 LLM 只产出 DESIGN.md 文档，侧栏卡片保持规则版（已在本次提取时渲染）。
+  // 模型文案作为文档文本返回，供复制/下载；卡片与左侧留档 JSON 始终来自本地规则。
+  if (artifacts) artifacts.designMd = md;
 
-  if (!result.semantics) {
-    // 走到这里有两种可能：输出里根本没有 JSON，或者每个字段都没过校验。
-    // 两种都退到本地版，区别只在提示里。
-    // 这种失败是模型这次没写好，换一次调用可能就好了，所以给重试
+  if (!run.designMd) {
+    // 模型没返回任何可用的 DESIGN.md，这次补全等于没发生，退回规则版并给重试
     setOrigin(
       'fallback',
-      noteLine('AI 返回的内容没有一处通过校验，这一份是纯本地生成版。', true) +
-        noteLine(summarizeIssues(result)) +
-        issuesNote(result.issues) +
+      noteLine('模型没有返回可用的 DESIGN.md，这一份是纯本地生成版。', true) +
+        noteLine(summarizeIssues(run)) +
+        issuesNote(run.issues) +
         actionRow('fallback'),
     );
     return;
   }
 
-  publishArtifacts(exported, result.semantics);
-
-  const seconds = (outcome.value.elapsedMs / 1000).toFixed(1);
+  const seconds = run.elapsedMs ? `，用时 ${(run.elapsedMs / 1000).toFixed(1)} 秒` : '';
   setOrigin(
     'ai',
     noteLine(
-      `语义内容由 ${model} 补全，用时 ${seconds} 秒。数值部分没有变动，仍然取自本次采集的实测结果。`,
+      `DESIGN.md 由 ${model} 从页面采样生成${seconds}。`,
       true,
     ) +
-      noteLine(summarizeIssues(result)) +
-      issuesNote(result.issues),
+      noteLine('侧栏卡片与左侧留档 JSON 始终来自本地规则分析；模型只补充了人读版的 DESIGN.md 文档。') +
+      noteLine(summarizeIssues(run)) +
+      issuesNote(run.issues),
   );
 }
 
 /**
- * 决定要不要跑 AI 补全。
+ * 决定走哪条路。
  *
- * 三种情况都不跑：没配、配得不全、用户把自动开关关了。三种都给出各自的说明，
- * 因为从用户角度看这三种是不同的事，一句统一的「未启用」解释不了他为什么
- * 没看到 AI 内容。
+ * 两条「二选一」的路：本地规则（localSkill）和 LLM 提取（LlmExtractSkill）。
+ * 用户关闭 LLM 开关、或开关开着但配置不完整时，都走 localSkill；
+ * 开关打开且配置完整时走 LlmSkill。
+ *
+ * 两条路都从原始采集样本 sample 进；ruleExported 是规则路径已经算好的结果，
+ * 用作 LLM 路径的回退基准，也供语义增强型 skill 复用 token 信息。
  */
-async function maybeEnhance(exported: SampleExport): Promise<void> {
+async function maybeEnhance(
+  sample: PageSample,
+  ruleExported: SampleExport,
+  dropped: boolean,
+): Promise<void> {
   let settings: LlmSettings;
   try {
     settings = await loadLlmSettings();
@@ -414,27 +414,29 @@ async function maybeEnhance(exported: SampleExport): Promise<void> {
     return;
   }
 
-  if (!settingsReady(settings)) {
+  if (!settings.useLlm) {
+    await renderWithSkill(sample, localSkill, ruleExported);
     setOrigin(
       'local',
       noteLine('这一份完全由本地规则生成。', true) +
-        noteLine('点右上角「设置」选一个服务商、填入自己的 API Key，之后每次提取都会自动带上语义补全。') +
+        noteLine('设置里关掉了 LLM 提取，需要时在设置页重新打开即可。') +
         actionRow('local'),
     );
     return;
   }
 
-  if (!settings.auto) {
+  if (!settingsReady(settings)) {
+    await renderWithSkill(sample, localSkill, ruleExported);
     setOrigin(
       'local',
-      noteLine('这一份是本地生成版。', true) +
-        noteLine('设置里关掉了自动补全，需要补全时在设置页重新打开即可。') +
+      noteLine('这一份由本地规则生成。', true) +
+        noteLine('LLM 提取已打开，但配置不完整，补好地址、Key 和模型名后再试。') +
         actionRow('local'),
     );
     return;
   }
 
-  await enhanceWithAi(exported, settings);
+  await enhanceWithAi(sample, ruleExported, settings, dropped);
 }
 
 // ---------------------------------------------------------------------
@@ -1582,7 +1584,7 @@ function renderResultState(state: PanelResult): void {
   // 提取会把上一次的补全重来一遍
   if (enhancedFor !== state.at) {
     enhancedFor = state.at;
-    void maybeEnhance(exported);
+    void maybeEnhance(sample, exported, state.dropped);
   }
 }
 

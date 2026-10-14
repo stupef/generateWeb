@@ -652,12 +652,16 @@ const aiSemantics: AiSemantics = {
   summary:
     '整体是克制的排版导向设计，层级靠字号落差拉开，不靠色块分隔。' +
     '视觉重心落在标题和主按钮两处，其余元素一律后退。',
-  colors: {
-    primary: '承担几乎全部阅读内容的主力色，改动它的明度会同时影响每一层级。',
-    tertiary: '唯一的强调色，出现频率极低是刻意的，不要因为显眼就扩大使用范围。',
-  },
-  components: {
-    'button-primary': '全页只有一处的决定性动作，靠填充和留白把自己和其他动作分开。',
+  colors: {},
+  components: {},
+  added: {
+    colors: {
+      primary: '承担几乎全部阅读内容的主力色，改动它的明度会同时影响每一层级。',
+      tertiary: '唯一的强调色，出现频率极低是刻意的，不要因为显眼就扩大使用范围。',
+    },
+    components: {
+      'button-primary': '全页只有一处的决定性动作，靠填充和留白把自己和其他动作分开。',
+    },
   },
   guidelines: [
     '主色只用于需要立刻被注意到的单个动作，不要扩散到装饰块上。',
@@ -732,11 +736,11 @@ check(
 check('AI 版概述带上了风格综述', aiMd.includes(aiSemantics.summary));
 check(
   'AI 版颜色一节有语义补充块',
-  aiMd.includes('**语义补充**') && aiMd.includes(aiSemantics.colors['primary'] ?? '\u0000'),
+  aiMd.includes('**语义补充**') && aiMd.includes(aiSemantics.added?.colors['primary'] ?? '\u0000'),
 );
 check(
   'AI 版组件描述接在本地说明之后',
-  aiMd.includes(aiSemantics.components['button-primary'] ?? '\u0000'),
+  aiMd.includes(aiSemantics.added?.components['button-primary'] ?? '\u0000'),
 );
 check(
   '提示词示例写在三级标题下并用围栏包住',
@@ -773,8 +777,10 @@ const strayMd = renderDesignMd(base, {
   summary: '',
   guidelines: [],
   prompt: '',
-  colors: { noSuchColorToken: '这一条不该出现在文件里。' },
-  components: { 'no-such-component': '这一条也不该出现。' },
+  added: {
+    colors: { noSuchColorToken: '这一条不该出现在文件里。' },
+    components: { 'no-such-component': '这一条也不该出现。' },
+  },
 });
 check(
   '对不上号的补全条目不会写进文件',
@@ -786,6 +792,7 @@ const blankSemantics: AiSemantics = {
   summary: '',
   colors: {},
   components: {},
+  added: { colors: {}, components: {} },
   guidelines: [],
   prompt: '',
 };

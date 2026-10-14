@@ -173,9 +173,20 @@ const STEPS = [
     name: '文档树遍历与框架归因',
     group: '采集层',
     about: 'jsdom 跑文档树，验的是「遍历到的结构事实」对不对，含跨域框架与同源框架的分别处理。',
-    cmd: [NODE, 'scripts/frame-check.mjs'],
-    assertions: true,
-  },
+      cmd: [NODE, 'scripts/frame-check.mjs'],
+      assertions: true,
+    },
+    {
+      id: 'canvas',
+      name: '页面底色口径',
+      group: '采集层',
+      about:
+        'jsdom 跑真实文档树，验的是「底色取哪个值」对不对。body 声明了不透明底色、首屏却被整屏区块盖住时，' +
+        '两者正好相反，这是合成数据构造不出来的一类；这里用真实采集函数跑出样本，再串上颜色分析，' +
+        '确认底色、深浅判断和主要文字色三处都跟着翻过来。',
+      cmd: [NODE, 'scripts/canvas-check.mjs'],
+      assertions: true,
+    },
   {
     id: 'e2e',
     name: '端到端采集与分析',

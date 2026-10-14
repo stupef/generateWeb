@@ -65,8 +65,10 @@ function stubLayout(win) {
   const proto = win.Element.prototype;
   proto.getBoundingClientRect = function () {
     const isFrame = this.tagName === 'IFRAME' || this.tagName === 'FRAME';
-    const w = isFrame ? 1200 : 120;
-    const h = isFrame ? 800 : 40;
+    const inlineW = parseFloat(this.getAttribute('data-w') || '');
+    const inlineH = parseFloat(this.getAttribute('data-h') || '');
+    const w = Number.isFinite(inlineW) ? inlineW : isFrame ? 1200 : 120;
+    const h = Number.isFinite(inlineH) ? inlineH : isFrame ? 800 : 40;
     return {
       x: 0,
       y: 0,
@@ -263,6 +265,41 @@ console.log(`    ${textD.replace(/\n/g, '\n    ')}`);
 console.log('');
 
 caseC.window.close();
+
+// ---------------------------------------------------------------------
+// 用例四：百分比圆角应按元素尺寸折算成 px
+//
+// jsdom 不做布局，这里靠 data-w / data-h 给元素打固定尺寸桩。
+// 一个 40×40 的元素 border-radius: 50% 应折算为 20px 而不是 0。
+// ---------------------------------------------------------------------
+console.log('='.repeat(64));
+console.log('用例四　百分比圆角折算');
+console.log('='.repeat(64));
+
+const caseD = build(`<!DOCTYPE html><html><head><style>${PAGE_CSS}</style></head><body>
+  <button data-w="40" data-h="40" style="background:rgb(45,45,45);color:rgb(255,255,255);border-radius:50%">×</button>
+  <button data-w="200" data-h="40" style="background:rgb(17,17,17);color:rgb(255,255,255);border-radius:9999px">primary</button>
+</body></html>`);
+
+installGlobals(caseD.window);
+const sampleD = collectPageSample();
+
+const stylesD = sampleD.styles || [];
+const circleSpec = stylesD.find((s) => s.height === 40 && s.width === 40);
+const pillSpec = stylesD.find((s) => s.height === 40 && s.width === 200);
+
+check('圆形按钮被采到', circleSpec !== undefined);
+check('胶囊按钮被采到', pillSpec !== undefined);
+check(
+  '40×40 的 50% 圆角应折算为 20px',
+  circleSpec !== undefined && circleSpec.radius >= 15 && circleSpec.radius <= 25,
+);
+check(
+  '9999px 圆角仍走胶囊分支',
+  pillSpec !== undefined && pillSpec.radius >= 80,
+);
+
+caseD.window.close();
 
 // ---------------------------------------------------------------------
 console.log('='.repeat(64));

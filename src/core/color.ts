@@ -34,6 +34,14 @@ const MIN_BG_SHARE = 0.002;
  */
 export const NEAR_CANVAS_CONTRAST = 1.2;
 
+/**
+ * 按用途分组聚类时，各组计算权重的口径。
+ *
+ * 背景组看面积，文字组看字符数，边框组看边框元素数，按钮组看按钮填充次数。
+ * 权重只影响代表色选择和聚类顺序，不影响输出色值本身。
+ */
+type EvidenceKind = 'bg' | 'text' | 'border' | 'button';
+
 export interface ColorEvidence {
   /** 作为背景出现的元素数 */
   backgroundCount: number;
@@ -255,6 +263,55 @@ function emptyAcc(): Acc {
   };
 }
 
+/** 为某个用途池创建或取回一条 Acc */
+function bumpInto(acc: Map<string, Acc>, hex: string): Acc {
+  let a = acc.get(hex);
+  if (!a) {
+    a = emptyAcc();
+    acc.set(hex, a);
+  }
+  return a;
+}
+
+/** 按用途计算各 hex 的权重，决定 leader 聚类的先后顺序和代表色 */
+function weightsFor(acc: Map<string, Acc>, kind: EvidenceKind): Map<string, number> {
+  const weights = new Map<string, number>();
+  for (const [hex, a] of acc) {
+    let w = 0;
+    if (kind === 'bg') {
+      w = a.bgArea;
+    } else if (kind === 'text') {
+      w = a.textChars;
+    } else if (kind === 'border') {
+      w = a.borderCount;
+    } else if (kind === 'button') {
+      w = a.buttonBackgroundCount;
+    }
+    weights.set(hex, w);
+  }
+  return weights;
+}
+
+/**
+ * 判断某个用途组里的簇是不是噪声。
+ *
+ * 分组后噪声判据应该只问「我在这个用途里有没有足够的证据」，不再看其他
+ * 通道。这样文字组里的小字号装饰色、边框组里的单条偶然线都能被正确清掉。
+ */
+function isNoiseFor(c: Cluster, kind: EvidenceKind, totalBgArea: number): boolean {
+  if (kind === 'bg') {
+    return c.acc.bgArea / totalBgArea < MIN_BG_SHARE;
+  }
+  if (kind === 'text') {
+    return c.acc.textChars < MIN_TEXT_CHARS;
+  }
+  if (kind === 'border') {
+    return c.acc.borderCount < MIN_BORDER_COUNT;
+  }
+  // 按钮组：只要被识别为按钮背景就不算噪声，哪怕只出现一次
+  return c.acc.buttonBackgroundCount === 0;
+}
+
 interface Cluster {
   /** 代表色。取簇内权重最高的那个原始色，而不是均值，
    *  这样输出的色值就是页面真实用过的，不会被平均成没人用过的颜色 */
@@ -270,13 +327,19 @@ interface Cluster {
  * 用 leader 聚类：按权重从高到低扫，能贴到已有簇代表色的就并入，否则自己开一簇。
  * 顺序确定，结果可复现。
  */
-function cluster(acc: Map<string, Acc>, weights: Map<string, number>): Cluster[] {
-  const entries = [...acc.entries()].map(([hex, a]) => ({
-    hex,
-    acc: a,
-    weight: weights.get(hex) ?? 0,
-    lab: toOklab(hex),
-  }));
+function cluster(
+  acc: Map<string, Acc>,
+  weights: Map<string, number>,
+  allowed: Set<string>,
+): Cluster[] {
+  const entries = [...acc.entries()]
+    .filter(([hex]) => allowed.has(hex))
+    .map(([hex, a]) => ({
+      hex,
+      acc: a,
+      weight: weights.get(hex) ?? 0,
+      lab: toOklab(hex),
+    }));
   entries.sort((x, y) => y.weight - x.weight);
 
   const clusters: Cluster[] = [];
@@ -325,110 +388,97 @@ function cluster(acc: Map<string, Acc>, weights: Map<string, number>): Cluster[]
 // ---------------------------------------------------------------------
 
 export function analyzeColors(sample: PageSample): ColorAnalysis {
-  // --- 1. 按用途分通道累计证据 ---------------------------------------
+  // --- 1. 累计证据。全通道记在一张表里，证据展示与溯源都按它取数 -----
   const acc = new Map<string, Acc>();
 
-  const bump = (hex: string): Acc => {
-    let a = acc.get(hex);
-    if (!a) {
-      a = emptyAcc();
-      acc.set(hex, a);
-    }
-    return a;
-  };
+  // 每条用途单独记「哪些色值在这个用途里出现过」，聚类时按用途切开
+  const bgHexes = new Set<string>();
+  const textHexes = new Set<string>();
+  const borderHexes = new Set<string>();
+  const buttonHexes = new Set<string>();
 
   let totalBgArea = 0;
   let totalChars = 0;
   let totalBorder = 0;
-  let totalControl = 0;
+
+  const buttonRefs = new Set(
+    sample.styles.filter((style) => style.kind === 'button').map((style) => style.ref),
+  );
 
   for (const el of sample.elements) {
     const background = backgroundHexOf(el);
     if (background) {
-      const a = bump(background);
+      const a = bumpInto(acc, background);
       a.bgCount++;
       a.bgArea += el.area;
       if (el.isControl) {
         a.controlBgCount++;
         a.controlBgArea += el.area;
+        a.controlCount++;
       }
       a.totalCount++;
       totalBgArea += el.area;
-      if (el.isControl) {
-        a.controlCount++;
-        totalControl++;
-      }
+      // 按钮背景只进按钮组，避免导航图标把页面底色和卡片底色挤掉
+      if (buttonRefs.has(el.ref)) buttonHexes.add(background);
+      else bgHexes.add(background);
     }
 
     const text = textHexOf(el);
     if (text) {
-      const a = bump(text);
+      const a = bumpInto(acc, text);
       a.textCount++;
       a.textChars += el.textChars;
       a.totalCount++;
       totalChars += el.textChars;
+      textHexes.add(text);
     }
 
     const border = borderHexOf(el);
     if (border) {
-      const a = bump(border);
+      const a = bumpInto(acc, border);
       a.borderCount++;
       a.totalCount++;
       totalBorder++;
-      if (el.isControl) {
-        a.controlCount++;
-        totalControl++;
-      }
+      borderHexes.add(border);
+      if (el.isControl) a.controlCount++;
     }
   }
 
-  // 主操作色取按钮填充背景中出现次数最多的颜色。链接文字、边框和装饰色不参与。
-  const buttonRefs = new Set(
-    sample.styles.filter((style) => style.kind === 'button').map((style) => style.ref),
-  );
+  // 按钮填充背景单独记一份使用频次，作为主操作色的竞争依据
   for (const el of sample.elements) {
     if (!buttonRefs.has(el.ref) || !el.backgroundColor) continue;
-    bump(el.backgroundColor.toLowerCase()).buttonBackgroundCount++;
+    const hex = el.backgroundColor.toLowerCase();
+    bumpInto(acc, hex).buttonBackgroundCount++;
+    buttonHexes.add(hex);
   }
 
   const canvasHex = sample.canvasColor ?? '#ffffff';
   if (totalBgArea === 0) {
     // 全页没有任何元素自设背景，把底色作为唯一背景证据补进去
-    const a = bump(canvasHex);
+    const a = bumpInto(acc, canvasHex);
     a.bgCount = 1;
     a.bgArea = sample.viewportWidth * sample.viewportHeight;
     a.totalCount = 1;
     totalBgArea = a.bgArea;
+    bgHexes.add(canvasHex);
   }
 
   const safe = (n: number, d: number) => (d > 0 ? n / d : 0);
 
-  // --- 2. 权重。只用于排序和挑簇代表色，不影响输出的色值 -------------
-  const weights = new Map<string, number>();
-  for (const [hex, a] of acc) {
-    weights.set(
-      hex,
-      safe(a.bgArea, totalBgArea) * 1.0 +
-        safe(a.textChars, totalChars) * 1.0 +
-        safe(a.borderCount, totalBorder) * 0.4 +
-        safe(a.controlCount, totalControl) * 0.6,
-    );
-  }
+  // --- 2. 按用途分组聚类。同一批色值在不同用途下各聚一次 -------------
+  const bgClusters = cluster(acc, weightsFor(acc, 'bg'), bgHexes);
+  const textClusters = cluster(acc, weightsFor(acc, 'text'), textHexes);
+  const borderClusters = cluster(acc, weightsFor(acc, 'border'), borderHexes);
+  const buttonClusters = cluster(acc, weightsFor(acc, 'button'), buttonHexes);
 
   const rawColorCount = acc.size;
-  const clusters = cluster(acc, weights);
+  const allClusters = [...bgClusters, ...textClusters, ...borderClusters, ...buttonClusters];
 
-  // --- 3. 定位页面底色所在的簇 ---------------------------------------
-  const canvasCluster =
-    clusters.find((c) => c.members.some((m) => m.hex === canvasHex)) ??
-    [...clusters].sort((x, y) => y.acc.bgArea - x.acc.bgArea)[0];
-
+  // --- 3. 从各组里分别选角色 ---------------------------------------
   const isDark = relativeLuminance(canvasHex) < 0.35;
 
   const evidenceOf = (c: Cluster, canvasRole = false): ColorEvidence => ({
-    // The canvas token describes page surfaces, not a button that happens to reuse
-    // the same fill. Keep control uses in palette evidence, but separate them from
-    // the page-background role and its provenance count.
+    // 底色这一档描述的是页面表面，不含恰好复用同色的按钮填充，所以单独减掉
     backgroundCount: c.acc.bgCount - (canvasRole ? c.acc.controlBgCount : 0),
     backgroundShare: safe(c.acc.bgArea - (canvasRole ? c.acc.controlBgArea : 0), totalBgArea),
     textCount: c.acc.textCount,
@@ -463,37 +513,17 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
   const roles: ColorRole[] = [];
   const used = new Set<Cluster>();
 
-  /**
-   * 先做噪声剔除，再分角色。
-   *
-   * 顺序很关键。如果先分角色、最后才过滤噪声，一个只出现一次的装饰色
-   * 会因为没有竞争者而直接拿到 surface 这类角色，再想拿掉就晚了。
-   * 所以必须在角色分配之前把噪声挡在候选集外面。
-   */
-  const isNoise = (c: Cluster): boolean => {
-    // 按钮背景即使只出现一次也保留，后续按按钮使用频次判断主操作色。
-    if (c.acc.buttonBackgroundCount > 0) return false;
-    if (c.acc.controlCount > 0) return false;
-    if (safe(c.acc.bgArea, totalBgArea) >= MIN_BG_SHARE) return false;
-    if (c.acc.textChars >= MIN_TEXT_CHARS) return false;
-    if (c.acc.borderCount >= MIN_BORDER_COUNT) return false;
-    return true;
-  };
+  // 先把噪声从各组候选集里清掉，但保留 canvas 所在簇
+  const bgCandidates = bgClusters.filter((c) => !isNoiseFor(c, 'bg', totalBgArea));
+  const textCandidates = textClusters.filter((c) => !isNoiseFor(c, 'text', totalBgArea));
+  const borderCandidates = borderClusters.filter((c) => !isNoiseFor(c, 'border', totalBgArea));
+  const buttonCandidates = buttonClusters.filter((c) => !isNoiseFor(c, 'button', totalBgArea));
 
-  const noise: Cluster[] = [];
-  const candidates: Cluster[] = [];
+  // --- 4. 页面底色 -------------------------------------------------
+  const canvasCluster =
+    bgCandidates.find((c) => c.members.some((m) => m.hex === canvasHex)) ??
+    bgCandidates.sort((x, y) => y.acc.bgArea - x.acc.bgArea)[0];
 
-  for (const c of clusters) {
-    if (c === canvasCluster) {
-      candidates.push(c);
-    } else if (isNoise(c)) {
-      noise.push(c);
-    } else {
-      candidates.push(c);
-    }
-  }
-
-  // --- 4. 页面底色 ---------------------------------------------------
   if (canvasCluster) {
     used.add(canvasCluster);
     roles.push(
@@ -509,17 +539,10 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
     );
   }
 
-  // --- 5. 文字色。按承载的字符数排序，字符最多的就是主要文字色 --------
-  const textCandidates = candidates
-    .filter(
-      (c) =>
-        !used.has(c) &&
-        c.acc.textChars >= MIN_TEXT_CHARS &&
-        contrastRatio(c.hex, canvasHex) >= 1.5,
-    )
-    .sort((x, y) => y.acc.textChars - x.acc.textChars);
-
-  const primaryCluster = textCandidates[0] ?? null;
+  // --- 5. 主要文字色 -----------------------------------------------
+  const primaryCluster = textCandidates
+    .filter((c) => contrastRatio(c.hex, canvasHex) >= 1.5)
+    .sort((x, y) => y.acc.textChars - x.acc.textChars)[0];
 
   if (primaryCluster) {
     used.add(primaryCluster);
@@ -538,18 +561,20 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
     );
   }
 
-  // 次要文字色优先挑一个明显比主要文字色弱的，那才是真正的次要层级
+  // --- 6. 次要文字色 -----------------------------------------------
   const secondaryCluster =
     textCandidates
-      .filter((c) => !used.has(c))
+      .filter((c) => c !== primaryCluster)
       .sort((x, y) => y.acc.textChars - x.acc.textChars)
       .find(
         (c) =>
           contrastRatio(c.hex, canvasHex) <=
           contrastRatio(primaryCluster?.hex ?? canvasHex, canvasHex),
-      ) ?? textCandidates.find((c) => !used.has(c)) ?? null;
+      ) ??
+    textCandidates.find((c) => c !== primaryCluster) ??
+    null;
 
-  if (secondaryCluster && secondaryCluster !== primaryCluster) {
+  if (secondaryCluster) {
     used.add(secondaryCluster);
     const e = evidenceOf(secondaryCluster);
     roles.push(
@@ -566,14 +591,13 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
     );
   }
 
-  // --- 6. 主操作色。只看所有按钮填充背景的出现频次 -------------------
-  const buttonColorCandidates = candidates
-    .filter((c) => c.acc.buttonBackgroundCount > 0)
-    .sort((x, y) => y.acc.buttonBackgroundCount - x.acc.buttonBackgroundCount);
-  const topButtonColor = buttonColorCandidates[0] ?? null;
+  // --- 7. 主操作色 -------------------------------------------------
+  const topButtonColor = buttonCandidates.sort(
+    (x, y) => y.acc.buttonBackgroundCount - x.acc.buttonBackgroundCount,
+  )[0];
   const topIsTied =
-    topButtonColor !== null &&
-    buttonColorCandidates[1]?.acc.buttonBackgroundCount === topButtonColor.acc.buttonBackgroundCount;
+    topButtonColor !== undefined &&
+    buttonCandidates[1]?.acc.buttonBackgroundCount === topButtonColor.acc.buttonBackgroundCount;
   const accentCluster = topIsTied ? null : topButtonColor;
 
   if (accentCluster) {
@@ -598,10 +622,10 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
     );
   }
 
-  // --- 7. 卡片与区块底色 ---------------------------------------------
+  // --- 8. 卡片与区块底色 -------------------------------------------
   const surfaceCluster =
-    candidates
-      .filter((c) => !used.has(c) && c.acc.bgCount >= MIN_SURFACE_COUNT)
+    bgCandidates
+      .filter((c) => c !== canvasCluster && c.acc.bgCount >= MIN_SURFACE_COUNT)
       .sort((x, y) => y.acc.bgArea - x.acc.bgArea)[0] ?? null;
 
   if (surfaceCluster) {
@@ -619,10 +643,10 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
     );
   }
 
-  // --- 8. 边框与分隔线 -----------------------------------------------
+  // --- 9. 边框与分隔线 ---------------------------------------------
   const borderCluster =
-    candidates
-      .filter((c) => !used.has(c) && c.acc.borderCount >= MIN_BORDER_COUNT)
+    borderCandidates
+      .filter((c) => c.acc.borderCount >= MIN_BORDER_COUNT)
       .sort((x, y) => y.acc.borderCount - x.acc.borderCount)[0] ?? null;
 
   if (borderCluster) {
@@ -639,21 +663,14 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
     );
   }
 
-  // --- 9. 没入选的颜色，逐条说明为什么被丢掉 -------------------------
-  const noiseSet = new Set(noise);
-
-  const discarded: DiscardedColor[] = clusters
+  // --- 10. 没入选的颜色，逐条说明为什么被丢掉 ------------------------
+  const discarded: DiscardedColor[] = allClusters
     .filter((c) => !used.has(c))
     .map((c) => {
-      let reason: string;
-      if (noiseSet.has(c)) {
-        reason =
-          c.acc.totalCount <= 2
-            ? `只出现在 ${c.acc.totalCount} 个元素上，判定为偶然色`
-            : '面积、文字量和边框信号都很弱，判定为局部细节色';
-      } else {
-        reason = '未达到角色门槛，收录进色板但不参与角色分配';
-      }
+      const reason =
+        c.acc.totalCount <= 2
+          ? `只出现在 ${c.acc.totalCount} 个元素上，判定为偶然色`
+          : '面积、文字量和边框信号都很弱，判定为局部细节色';
       return { hex: c.hex, count: c.acc.totalCount, reason };
     })
     .sort((x, y) => y.count - x.count)
@@ -664,7 +681,7 @@ export function analyzeColors(sample: PageSample): ColorAnalysis {
     isDark,
     roles,
     discarded,
-    clusterCount: clusters.length,
+    clusterCount: allClusters.length,
     rawColorCount,
   };
 }

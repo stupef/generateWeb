@@ -25,12 +25,13 @@
     "sample:design-md": "jiti scripts/design-md-sample.ts",
     "check:diagnose": "jiti scripts/diagnose-check.ts",
     "check:frame": "node scripts/frame-check.mjs",
+    "check:canvas": "node scripts/canvas-check.mjs",
     "check:injection": "node scripts/verify-injection.mjs",
     "check:entry": "node scripts/entry-check.mjs",
     "check:e2e": "node scripts/e2e-check.mjs",
     "check:highlight": "node scripts/highlight-shot.mjs",
     "report": "node scripts/report.mjs",
-    "check": "npm run check:diagnose && npm run check:color && npm run check:typography && npm run check:spacing && npm run check:effects && npm run check:components && npm run check:background && npm run check:export && npm run check:provenance && npm run check:design-md && npm run check:semantics && npm run check:llm && npm run check:notice && npm run check:frame && npm run compile"
+    "check": "npm run check:diagnose && npm run check:color && npm run check:typography && npm run check:spacing && npm run check:effects && npm run check:components && npm run check:background && npm run check:export && npm run check:provenance && npm run check:design-md && npm run check:semantics && npm run check:llm && npm run check:notice && npm run check:frame && npm run check:canvas && npm run compile"
   },
   "license": "ISC",
   "devDependencies": {

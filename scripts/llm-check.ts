@@ -160,7 +160,7 @@ eq('未知协议回落到默认值', dirty.protocol, 'openai');
 eq('地址去掉首尾空白和末尾斜杠', dirty.baseUrl, 'https://api.example.com/v1');
 eq('Key 去掉首尾空白', dirty.apiKey, 'sk-abc');
 eq('模型名去掉首尾空白', dirty.model, 'm1');
-eq('过大的生成上限被夹到上限', dirty.maxTokens, 8192);
+eq('过大的生成上限被夹到上限', dirty.maxTokens, 32768);
 
 const tiny = normalizeLlmConfig({ maxTokens: 1 });
 eq('过小的生成上限被夹到下限', tiny.maxTokens, 256);
@@ -169,11 +169,13 @@ eq('null 输入不会抛异常', JSON.stringify(normalizeLlmConfig(null)), JSON.
 eq('数组输入不会抛异常', normalizeLlmConfig([]).protocol, 'openai');
 eq('数字输入不会抛异常', normalizeLlmConfig(7).model, '');
 
-const settings = normalizeLlmSettings({ config: { apiKey: 'k' }, auto: 'yes', savedAt: 5 });
-eq('设置里的 auto 类型不对时回落到默认开', settings.auto, true);
+const settings = normalizeLlmSettings({ config: { apiKey: 'k' }, useLlm: 'yes', savedAt: 5 });
+eq('设置里的 useLlm 类型不对时回落到默认开', settings.useLlm, true);
 eq('设置里的 savedAt 类型不对时回落到 null', settings.savedAt, null);
 eq('设置里的 config 也会被归一化', settings.config.apiKey, 'k');
-eq('auto 显式为 false 时保留', normalizeLlmSettings({ auto: false }).auto, false);
+eq('旧 auto=true 兼容到 useLlm=true', normalizeLlmSettings({ auto: true }).useLlm, true);
+eq('旧 auto=false 兼容到 useLlm=false', normalizeLlmSettings({ auto: false }).useLlm, false);
+eq('useLlm 显式为 false 时保留', normalizeLlmSettings({ useLlm: false }).useLlm, false);
 
 // ---------------------------------------------------------------------
 // 三、地址工具
@@ -226,9 +228,10 @@ eq(
   JSON.stringify((oaBody.messages as { role: string }[])[0]?.role),
   '"system"',
 );
-// 有意不发输出上限：max_tokens 和 max_completion_tokens 的适用模型不重叠，
-// 发哪个都会在某些模型上报 400，而这一条要覆盖十来个服务商
-check('OpenAI 兼容的对话不发输出上限', oaBody.max_tokens === undefined && oaBody.max_completion_tokens === undefined);
+// 现在带上 max_tokens：早期为躲推理模型对 max_tokens 的 400 而故意不发，
+// 代价是服务端默认上限常太小、把大产出截断成半个 JSON。普通 chat 模型都接受。
+check('OpenAI 兼容的对话带上 max_tokens', typeof oaBody.max_tokens === 'number' && oaBody.max_completion_tokens === undefined);
+eq('OpenAI 兼容带上的是配置里的生成上限', oaBody.max_tokens, cfg().maxTokens);
 eq('OpenAI 兼容的探测请求发一个很小的上限', JSON.parse(openai.probe(cfg()).body ?? '{}').max_tokens, 32);
 eq('OpenAI 兼容的模型列表是 GET', openai.models(cfg())?.method, 'GET');
 eq('OpenAI 兼容的模型列表地址', openai.models(cfg())?.url, 'https://api.example.com/v1/models');

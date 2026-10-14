@@ -12,10 +12,12 @@
  * 代价是少了一层「强制 JSON」的保障，所以取值那一步做得很宽：从响应文本里
  * 剥代码围栏、找最外层花括号、再解析，具体见 semantics.ts。
  *
- * OpenAI 兼容这一条还有一个例外：**不发输出上限**。max_tokens 和
- * max_completion_tokens 这两代参数的适用模型不重叠，发哪个都会在某些模型上
- * 报 400，而这一条要覆盖的服务商有十来个，不可能按模型分流。索性不发，
- * 由服务端的默认上限兜底。Anthropic 那边反过来，max_tokens 是必填的。
+ * OpenAI 兼容这一条以前**不发输出上限**：max_tokens 和
+ * max_completion_tokens 两代参数适用模型不重叠，发哪个都会在某些推理模型上
+ * 报 400。但「不发」的代价是服务端默认上限常太小，把本 skill 要的大产出
+ * 截断成半个 JSON，报错看着像模型不会用 JSON。现在改为带上 max_tokens，
+ * 普通 chat 模型都接受；少数推理模型仍只认 max_completion_tokens，撞上会
+ * 回 400，换模型即可。Anthropic 那边 max_tokens 一直是必填的。
  */
 import type { LlmAdapter, LlmConfig, LlmProtocol, ProviderPreset } from './types';
 import { PROBE_MAX_TOKENS, joinUrl } from './config';
@@ -219,6 +221,7 @@ const openai: LlmAdapter = {
       },
       body: JSON.stringify({
         model: config.model,
+        max_tokens: config.maxTokens,
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user },

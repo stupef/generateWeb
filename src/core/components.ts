@@ -118,6 +118,22 @@ function medianOf(values: number[]): number {
 }
 
 /**
+ * 按钮签名组的视觉重量分。
+ *
+ * 单纯比人数会把导航里一堆小图标按钮抬成主按钮。真正主按钮通常
+ * 带文字、尺寸大、不在导航里；把这三条量化之后，1 个 CTA 也能赢过
+ * 一堆图标。
+ */
+function buttonGroupScore(list: StyleObservation[]): number {
+  const first = list[0];
+  if (!first) return 0;
+  const sizeScore = Math.min(numOf(first.height) / 32, 1.5) + Math.min(padYOf(first) / 10, 1);
+  const textScore = list.some((x) => numOf(x.textChars) > 0) ? 2.5 : 0;
+  const navPenalty = first.inNav ? 1.5 : 0;
+  return sizeScore + textScore - navPenalty + Math.min(list.length, 4) * 0.25;
+}
+
+/**
  * 一组元素的外观签名。
  *
  * 用法是先把完全同款式的元素聚在一起，再取人数最多的那一组当代表。
@@ -377,10 +393,16 @@ export function analyzeComponents(sample: PageSample): ComponentsAnalysis {
       if (list) list.push(s);
       else bySignature.set(key, [s]);
     }
-    // 取人数最多的那一组当代表。平票取先入表的那个，结果稳定可复现
+    // 取视觉上最像主按钮的那一组当代表。人数多不代表权重高，
+    // 带文字、尺寸大、不在导航里的组优先，否则导航图标按钮会淹没真实 CTA。
     let rep: StyleObservation[] | null = null;
+    let bestScore = -Infinity;
     for (const list of bySignature.values()) {
-      if (!rep || list.length > rep.length) rep = list;
+      const score = buttonGroupScore(list);
+      if (!rep || score > bestScore) {
+        rep = list;
+        bestScore = score;
+      }
     }
     if (!rep) continue;
     const style = styleOf(rep);

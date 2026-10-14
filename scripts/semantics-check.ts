@@ -57,12 +57,14 @@ const MODEL = 'unit-test-model';
 function good(): Record<string, unknown> {
   return {
     summary: '整体克制，层级靠字号落差拉开，不靠色块分隔。',
-    colors: {
-      primary: '承担几乎全部阅读内容的主力色。',
-      tertiary: '唯一的强调色，出现频率极低是刻意的。',
-    },
-    components: {
-      'button-primary': '全页只有一处的决定性动作，靠填充和留白把自己分出来。',
+    added: {
+      colors: {
+        primary: '承担几乎全部阅读内容的主力色。',
+        tertiary: '唯一的强调色，出现频率极低是刻意的。',
+      },
+      components: {
+        'button-primary': '全页只有一处的决定性动作，靠填充和留白把自己分出来。',
+      },
     },
     guidelines: ['主色只用于需要立刻被注意到的单个动作。'],
     prompt: '请遵循这份文件的配色与层级，正文统一使用 body-md。',
@@ -81,8 +83,8 @@ const okResult = parseOf(good());
 check('全部字段合规时没有 issue', okResult.issues.length === 0, JSON.stringify(okResult.issues));
 check('全部字段合规时不整份拒绝', !okResult.rejected);
 eq('综述被保留', okResult.semantics?.summary, good().summary);
-eq('颜色条目数', Object.keys(okResult.semantics?.colors ?? {}).length, 2);
-eq('组件条目数', Object.keys(okResult.semantics?.components ?? {}).length, 1);
+eq('颜色条目数', Object.keys(okResult.semantics?.added?.colors ?? {}).length, 2);
+eq('组件条目数', Object.keys(okResult.semantics?.added?.components ?? {}).length, 1);
 eq('护栏条数', okResult.semantics?.guidelines.length, 1);
 eq('模型名由调用方传入而不是从输出里读', okResult.semantics?.model, MODEL);
 
@@ -347,8 +349,10 @@ const sys = systemPrompt();
 for (const keyword of ['阿拉伯数字', '花括号', '井号', '连字号', '围栏', 'JSON']) {
   check(`系统提示词点名了「${keyword}」这条约束`, sys.includes(keyword));
 }
-check('系统提示词要求不要复述已有文案', sys.includes('不要复述'));
+check('系统提示词要求通过 added 字段追加', sys.includes('added'));
+check('系统提示词要求 recorded 原样保留', sys.includes('会原样保留'));
 check('系统提示词点明数值由采集程序负责', sys.includes('数值由采集程序负责'));
+check('系统提示词带上了 few-shot 示例', sys.includes('风格示例'));
 
 const brief: DesignBrief = {
   page: { name: 'example.com', host: 'example.com', canvas: '#FFFFFF', theme: '浅色', viewport: '1440px 宽' },

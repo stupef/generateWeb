@@ -306,6 +306,66 @@ export function collectPageSample(): PageSample {
   // 哪些元素宽到可能是内容容器。
   const viewportWidth = window.innerWidth;
   const viewportArea = viewportWidth * window.innerHeight;
+
+  // ------------------------------------------------------------------
+  // 首屏主表面。页面底色不能只看 body。
+  //
+  // body 上经常声明了不透明的底色，却在首屏被一个整屏区块整个盖住。这时
+  // body 的值和肉眼看到的正好相反，about.nike.com 就是 body 白底、首屏全黑，
+  // 只读 body 会把黑白报反，接着所有「与底色的对比度」都跟着算错，连白色
+  // 正文都拿不到主要文字色那个角色。
+  //
+  // 做法是按绘制顺序，把每个自带背景的元素采样进一张铺满首屏的粗网格，
+  // 后画的盖住先画的，最后数哪种颜色占的格子最多。格心点采样用来近似覆盖
+  // 面积，小按钮就只占它真正盖住的那几格，不会因为跨了格线被放大成整片。
+  //
+  // 采样只认顶层文档。框架内的矩形是相对框架视口量的，直接铺进这张网格会
+  // 错位；而框架本身只占页面一小块，不影响「底色」这件事。
+  //
+  // 元素的矩形是相对当前滚动位置的，这里补回滚动量，让取样点固定在文档的
+  // 第一屏。固定定位的元素本来就不随页面滚动，不补。
+  // ------------------------------------------------------------------
+  const FIRST_VIEWPORT_HEIGHT = Math.max(1, window.innerHeight);
+  const SURFACE_CELL = 16;
+  /** 顶替文档画布的那个颜色，至少要占到首屏这么多 */
+  const FIRST_VIEWPORT_MAJORITY = 0.5;
+  // 格子按视口尺寸均分，不是切成 16px 一块再补零头。补零头会留下一列
+  // 半格，它的格心落在视口外面，任何元素都盖不到它，于是「文档画布在首屏
+  // 一点都看不到」这个判据永远不成立，整条逻辑失效。均分之后每个格心都
+  // 严格落在视口内，任何一块铺满视口的元素都能把它们全部覆盖。
+  const surfaceCols = Math.max(1, Math.round(viewportWidth / SURFACE_CELL));
+  const surfaceRows = Math.max(1, Math.round(FIRST_VIEWPORT_HEIGHT / SURFACE_CELL));
+  const surfaceCellWidth = viewportWidth / surfaceCols;
+  const surfaceCellHeight = FIRST_VIEWPORT_HEIGHT / surfaceRows;
+  const surfaceGrid: (string | null)[] = new Array<string | null>(
+    surfaceCols * surfaceRows,
+  ).fill(null);
+
+  function paintFirstViewport(rect: DOMRect, scrollOffset: number, color: string): void {
+    const top = Math.max(0, rect.top + scrollOffset);
+    const bottom = Math.min(FIRST_VIEWPORT_HEIGHT, rect.bottom + scrollOffset);
+    const left = Math.max(0, rect.left);
+    const right = Math.min(viewportWidth, rect.right);
+    if (bottom <= top || right <= left) return;
+
+    // 浮点矩形直接除以格宽会偶尔多算一格，减去的这个极小量把它拉回来
+    const rowFrom = Math.max(0, Math.floor(top / surfaceCellHeight));
+    const rowTo = Math.min(surfaceRows - 1, Math.floor((bottom - 1e-6) / surfaceCellHeight));
+    const colFrom = Math.max(0, Math.floor(left / surfaceCellWidth));
+    const colTo = Math.min(surfaceCols - 1, Math.floor((right - 1e-6) / surfaceCellWidth));
+
+    for (let row = rowFrom; row <= rowTo; row++) {
+      const cy = (row + 0.5) * surfaceCellHeight;
+      if (cy < top || cy >= bottom) continue;
+      const base = row * surfaceCols;
+      for (let col = colFrom; col <= colTo; col++) {
+        const cx = (col + 0.5) * surfaceCellWidth;
+        if (cx < left || cx >= right) continue;
+        surfaceGrid[base + col] = color;
+      }
+    }
+  }
+
   let largeFrames = 0;
   let largestFrameArea = 0;
   let pdfEmbeds = 0;
@@ -525,19 +585,48 @@ export function collectPageSample(): PageSample {
   /**
    * 圆角取四角最大值。
    *
-   * 含 % 的值直接跳过。百分比写法（border-radius: 50%）解析出来的 50
-   * 是「50%」而不是 50px，当成半径会得出一个荒唐的数字。
+   * px 值直接读。百分比值按元素短边折算，因为 CSS 会把百分比半径限制
+   * 在对应边长的一半以内，一个 30×30 的元素 border-radius: 100%
+   * 实际等效于 15px 的圆。
+   *
+   * 若四个角都没读到（jsdom 不会自动展开 border-radius 简写），
+   * 再读简写本身兜底。
    */
-  function radiusOf(cs: CSSStyleDeclaration): number {
+  function radiusOf(cs: CSSStyleDeclaration, rect: DOMRectReadOnly): number {
+    const minSide = Math.min(rect.width, rect.height);
+
+    function parseRadiusValue(v: string): number | null {
+      if (!v) return null;
+      if (v.indexOf('%') !== -1) {
+        const pct = parseFloat(v);
+        if (!Number.isFinite(pct) || pct <= 0) return null;
+        return Math.round(minSide * Math.min(pct, 50) / 100);
+      }
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : null;
+    }
+
     let max = 0;
     for (let i = 0; i < RADIUS_CORNERS.length; i++) {
       const name = RADIUS_CORNERS[i];
       if (!name) continue;
       const v = cs.getPropertyValue(name);
-      if (!v || v.indexOf('%') !== -1) continue;
-      const n = parseFloat(v);
-      if (!Number.isNaN(n) && n > max) max = n;
+      if (!v) continue;
+      const n = parseRadiusValue(v);
+      if (n !== null && n > max) max = n;
     }
+
+    // jsdom 不会把 border-radius 简写展开到四个角，真实浏览器会。
+    // 把简写也读一遍，两者取大，确保两种环境下都不会漏掉百分比写法。
+    const shorthand = cs.getPropertyValue('border-radius');
+    if (shorthand) {
+      const parts = shorthand.split(/\s+/).filter(Boolean);
+      for (const part of parts) {
+        const n = parseRadiusValue(part);
+        if (n !== null && n > max) max = n;
+      }
+    }
+
     return round1(max);
   }
 
@@ -763,6 +852,14 @@ export function collectPageSample(): PageSample {
 
     const surface = surfaceOf(el);
 
+    // 首屏主表面的采样点。放在这里是因为往下的分支还会 continue 掉一批
+    // 元素（inline 的、content-visibility 折叠的），但它们画在屏幕上的
+    // 底色一样看得见，不该漏掉。
+    if (surface.ownAlpha > 0 && el.ownerDocument === doc) {
+      const scrollOffset = cs.position === 'fixed' ? 0 : window.scrollY || 0;
+      paintFirstViewport(rect, scrollOffset, toHex(surface.solid));
+    }
+
     const textRgba = textChars > 0 ? resolve(cs.color) : null;
     const textColor = textRgba ? toHex(over(textRgba, surface.solid)) : null;
 
@@ -810,7 +907,7 @@ export function collectPageSample(): PageSample {
     const padR = pxOf(cs.paddingRight);
     const padB = pxOf(cs.paddingBottom);
     const padL = pxOf(cs.paddingLeft);
-    const radiusAll = radiusOf(cs);
+    const radiusAll = radiusOf(cs, rect);
     const hasOwnSurface = surface.ownAlpha > 0;
     const shadow = shadowOf(cs.boxShadow);
     const looksLikeCard =
@@ -1009,12 +1106,59 @@ export function collectPageSample(): PageSample {
     blockedFrames,
   };
 
+  // ------------------------------------------------------------------
+  // 定底色。两个值都给出去，因为两个说法各自成立，合在一起才讲得清。
+  //
+  // documentCanvas 是文档画布色，也就是「什么都不盖的时候看到的颜色」，
+  // body 有背景就直接用它。dominant 是首屏里实际占格子最多的颜色。
+  //
+  // 什么情况下才认 dominant。判据是「文档画布色在首屏一个格子都没占到」，
+  // 也就是它在首屏完全看不到，这正说明 body 声明的底色和肉眼看到的无关。
+  // 不用比例阈值是因为那个数怎么定都别扭：浅色页面里一块浅灰区块能盖住
+  // 首屏七成，按比例算会把底色从白改成浅灰，可白底明明还在屏幕上。
+  //
+  // 格心采样天然带一点宽容，比一格还细的缝不会有任何格心落在里面，所以
+  // 一条一像素的白边不至于把「完全看不到」判成「看得到」。
+  //
+  // 另加一条，顶替者要占到首屏一半以上。几个色块平分首屏时谁也不是底色，
+  // 这种情况宁可留着文档画布色不动。
+  //
+  // 没被任何元素覆盖的格子露出的是文档画布，所以它们按 documentCanvas
+  // 计数，不另算一种颜色。
+  // ------------------------------------------------------------------
+  const documentCanvas = toHex(surfaceOf(bodyEl).solid);
+  const surfaceTally = new Map<string, number>();
+  for (let i = 0; i < surfaceGrid.length; i++) {
+    const hex = surfaceGrid[i] ?? documentCanvas;
+    surfaceTally.set(hex, (surfaceTally.get(hex) ?? 0) + 1);
+  }
+  let dominantSurface = documentCanvas;
+  let dominantCells = 0;
+  // 并列时留先画的那个赢。绘制顺序基本等于文档从上到下的顺序，先画的
+  // 在那个位置更靠上，也就是更容易先被看到
+  for (const [hex, cells] of surfaceTally) {
+    if (cells > dominantCells) {
+      dominantSurface = hex;
+      dominantCells = cells;
+    }
+  }
+  const totalCells = surfaceGrid.length;
+  const canvasShare = totalCells > 0 ? (surfaceTally.get(documentCanvas) ?? 0) / totalCells : 1;
+  const dominantShare = totalCells > 0 ? dominantCells / totalCells : 0;
+  const canvasColor =
+    dominantSurface !== documentCanvas &&
+    canvasShare === 0 &&
+    dominantShare >= FIRST_VIEWPORT_MAJORITY
+      ? dominantSurface
+      : documentCanvas;
+
   return {
     url: doc.location.href,
     title: doc.title,
     viewportWidth,
     viewportHeight: window.innerHeight,
-    canvasColor: toHex(surfaceOf(bodyEl).solid),
+    canvasColor,
+    documentCanvasColor: documentCanvas,
     prefersDark,
     elements,
     typography,

@@ -39,12 +39,12 @@ const baseInput = el<HTMLInputElement>('base-url');
 const keyInput = el<HTMLInputElement>('api-key');
 const modelInput = el<HTMLInputElement>('model');
 const modelList = el<HTMLDataListElement>('model-list');
-const autoCheck = el<HTMLInputElement>('auto');
+const useLlmCheck = el<HTMLInputElement>('use-llm');
 const statusBox = el<HTMLElement>('status');
 
 let settings: LlmSettings = {
-  config: { protocol: 'openai', baseUrl: '', apiKey: '', model: '', maxTokens: 2048 },
-  auto: true,
+  config: { protocol: 'openai', baseUrl: '', apiKey: '', model: '', maxTokens: 8192 },
+  useLlm: true,
   savedAt: null,
 };
 
@@ -191,7 +191,7 @@ async function onSave() {
   let granted = true;
   if (pattern) granted = await ensureOriginPermission(config.baseUrl);
 
-  settings = { config, auto: autoCheck.checked, savedAt: new Date().toISOString() };
+  settings = { config, useLlm: useLlmCheck.checked, savedAt: new Date().toISOString() };
   await saveLlmSettings(settings);
   renderSavedAt();
 
@@ -214,7 +214,7 @@ async function onSave() {
     return;
   }
 
-  showStatus('ok', '配置已保存', '回到插件弹窗重新提取一次，就会带上 AI 补全的内容。');
+  showStatus('ok', '配置已保存', '回到插件弹窗重新提取一次，就会按这里的开关选择规则或 LLM 路径。');
   renderKeyHint();
 }
 
@@ -269,7 +269,7 @@ async function onClear() {
   await clearLlmSettings();
   settings = {
     config: { protocol: 'openai', baseUrl: '', apiKey: '', model: '', maxTokens: settings.config.maxTokens },
-    auto: true,
+    useLlm: true,
     savedAt: null,
   };
   protocolSelect.value = 'openai';
@@ -279,10 +279,10 @@ async function onClear() {
   keyInput.value = '';
   modelInput.value = '';
   modelList.innerHTML = '';
-  autoCheck.checked = true;
+  useLlmCheck.checked = true;
   statusBox.hidden = true;
   renderSavedAt();
-  showStatus('ok', '配置已清空', '插件回到本地生成模式，后续提取不再调用模型。');
+  showStatus('ok', '配置已清空', '开关仍默认打开，但没有配置时会走本地规则路径。');
 }
 
 // ---------------------------------------------------------------------
@@ -351,7 +351,7 @@ async function init() {
   // 不在这里预先打码——打码后的值一旦被保存下来，Key 就废了
   keyInput.value = c.apiKey;
   modelInput.value = c.model;
-  autoCheck.checked = settings.auto;
+  useLlmCheck.checked = settings.useLlm;
 
   el('version-foot').textContent = `提示词版本 ${PROMPT_VERSION}　配置结构 v1`;
   renderPresetHint();

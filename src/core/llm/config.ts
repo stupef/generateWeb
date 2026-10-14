@@ -14,15 +14,18 @@ import type { LlmConfig, LlmProtocol, LlmSettings } from './types';
 /**
  * 默认单次生成上限。
  *
- * 这份产出是一小段 JSON（十来句短文案），两千 token 有充分余量。上限的意义
+ * 这份产出是一整块结构化分析 JSON 加一份完整 DESIGN.md，体量比早期的小
+ * 语义补丁大得多，默认给到八千 token 才够典型页面一次吐完。上限的意义
  * 不在于够不够，而在于失控时有个止损：模型偶尔会跑进复读循环，不设上限
  * 会一路烧到上下文窗口再截断，账单和等待时间都不可预期。
  *
- * 注意这个值只在真正支持它的协议上生效。Anthropic 必填、Gemini 用得上，
- * 而 OpenAI 兼容那一条是**故意不发**的，理由写在 providers.ts 顶上：两代
- * 上限参数的适用模型不重叠，发哪个都会在某些模型上报 400。
+ * 这个值对三家协议都生效：Anthropic 必填、Gemini 用 maxOutputTokens、
+ * OpenAI 兼容现在也会带上 max_tokens（早期为躲推理模型对 max_tokens 的 400
+ * 而故意不发，代价是服务端默认上限常太小、把大产出截断成半个 JSON）。
+ * 少数推理模型仍只认 max_completion_tokens，遇到就回 400，换普通 chat
+ * 模型即可。
  */
-export const DEFAULT_MAX_TOKENS = 2048;
+export const DEFAULT_MAX_TOKENS = 8192;
 
 /** 探测请求只要求回一个词，给足余量也不到一百 token */
 export const PROBE_MAX_TOKENS = 32;
@@ -76,29 +79,34 @@ export function normalizeLlmConfig(raw: unknown): LlmConfig {
     baseUrl: str(src.baseUrl).trim().replace(/\/+$/, ''),
     apiKey: str(src.apiKey).trim(),
     model: str(src.model).trim(),
-    maxTokens: Math.min(Math.max(size, 256), 8192),
+    maxTokens: Math.min(Math.max(size, 256), 32768),
   };
 }
 
 /**
  * 把任意输入收成一份能用的设置。
  *
- * auto 默认开。验收标准里写的是「配置好后，插件调用大模型补充语义内容」，
- * 默认关掉的话配完 Key 还得再想一步才会看到效果。反向的顾虑是每打开一次
- * 插件都要花钱，这一点在设置页上明确写出来了，用户能自己关。
+ * useLlm 默认开，表示默认走 LLM 提取路径。如果用户之前存的是旧字段 auto，
+ * 也兼容它：auto=true 等价于 useLlm=true，auto=false 等价于 useLlm=false。
  */
 export function normalizeLlmSettings(raw: unknown): LlmSettings {
   const src = (raw ?? {}) as Record<string, unknown>;
+  const useLlm =
+    typeof src.useLlm === 'boolean'
+      ? src.useLlm
+      : typeof src.auto === 'boolean'
+        ? src.auto
+        : true;
   return {
     config: normalizeLlmConfig(src.config),
-    auto: typeof src.auto === 'boolean' ? src.auto : true,
+    useLlm,
     savedAt: typeof src.savedAt === 'string' ? src.savedAt : null,
   };
 }
 
 /** 从来没配过的初始状态 */
 export function defaultLlmSettings(): LlmSettings {
-  return { config: blankConfig(), auto: true, savedAt: null };
+  return { config: blankConfig(), useLlm: true, savedAt: null };
 }
 
 /** 有没有配到「能发起调用」的程度。读取路径上用它决定要不要自动跑补全 */

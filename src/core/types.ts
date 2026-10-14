@@ -377,8 +377,21 @@ export interface PageSample {
   title: string;
   viewportWidth: number;
   viewportHeight: number;
-  /** 页面最终呈现的底色，已从 body 向上合成 */
+  /**
+   * 页面底色。取自首屏里绘制面积最大的那个表面，也就是肉眼看到的底色。
+   *
+   * 它不一定等于 body 上的背景色。很多站点在 body 上声明了不透明底色，
+   * 首屏却被一个整屏区块整个盖住，那时两者正好相反。下一步的对比度、
+   * 深色浅色判断都以这个值为基准，所以这里必须给视觉结果而不是 DOM 事实。
+   */
   canvasColor: string | null;
+  /**
+   * 文档画布色，也就是 body 上合成出来的那个颜色，什么都不盖时看到的就是它。
+   *
+   * 和 canvasColor 不一致时，说明首屏被别的色块盖住了。留这个值是为了把
+   * 「为什么 body 是白而页面是黑」讲清楚，不要拿它当对比度的基准。
+   */
+  documentCanvasColor?: string | null;
   /** 文档是否声明了深色配色方案，影响底色兜底值 */
   prefersDark: boolean;
   elements: ElementObservation[];

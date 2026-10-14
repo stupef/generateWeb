@@ -51,6 +51,14 @@ export interface AiSemantics {
   colors: Record<string, string>;
   /** 组件名到形态描述。键同上 */
   components: Record<string, string>;
+  /**
+   * 追加到本地 recorded 字段后面的补充说明。
+   * 键必须来自本次实际生成的 token，值只写 recorded 没覆盖到的角度。
+   */
+  added?: {
+    colors: Record<string, string>;
+    components: Record<string, string>;
+  };
   /** 追加的护栏条目，与本地条目合并 */
   guidelines: string[];
   /** 给编码 agent 的提示词示例 */
@@ -226,6 +234,35 @@ function asRecord(v: unknown): Record<string, unknown> | null {
 }
 
 /**
+ * 收拢 `added` 字段下的 colors / components。
+ *
+ * added 是新的 canonical 来源：LLM 只写 recorded 没覆盖到的角度，
+ * 校验只判键名白名单和禁数字，不判和 recorded 是否相似。
+ */
+function parseAdded(
+  raw: unknown,
+  known: KnownKeys,
+  issues: SemanticsIssue[],
+): { colors: Record<string, string>; components: Record<string, string> } | null {
+  if (raw === undefined) return null;
+  const rec = asRecord(raw);
+  if (!rec) {
+    issues.push({ field: 'added', reason: '不是对象' });
+    return null;
+  }
+  const colors = collectNotes(rec.colors, known.colors, MAX_COLOR_NOTE_CHARS, 'added.colors', issues);
+  const components = collectNotes(
+    rec.components,
+    known.components,
+    MAX_COMPONENT_NOTE_CHARS,
+    'added.components',
+    issues,
+  );
+  const hasAny = Object.keys(colors).length > 0 || Object.keys(components).length > 0;
+  return hasAny ? { colors, components } : null;
+}
+
+/**
  * 把模型的原文收成一份可用的文案。
  *
  * model 由调用方传入而不是从输出里读：模型自报的身份不可信，而这一项要写进
@@ -253,6 +290,7 @@ export function parseSemantics(raw: string, model: string, known: KnownKeys): Se
 
   const colors = collectNotes(root.colors, known.colors, MAX_COLOR_NOTE_CHARS, 'colors', issues);
   const components = collectNotes(root.components, known.components, MAX_COMPONENT_NOTE_CHARS, 'components', issues);
+  const added = parseAdded(root.added, known, issues);
 
   const guidelines: string[] = [];
   if (root.guidelines !== undefined) {
@@ -303,12 +341,13 @@ export function parseSemantics(raw: string, model: string, known: KnownKeys): Se
     summary.length === 0 &&
     Object.keys(colors).length === 0 &&
     Object.keys(components).length === 0 &&
+    !added &&
     guidelines.length === 0 &&
     prompt.length === 0;
 
   if (empty) return { semantics: null, issues, rejected: false };
 
-  return { semantics: { model, summary, colors, components, guidelines, prompt }, issues, rejected: false };
+  return { semantics: { model, summary, colors, components, added: added ?? undefined, guidelines, prompt }, issues, rejected: false };
 }
 
 /**
@@ -352,23 +391,27 @@ function collectNotes(
 
 /** 空文案。语义层没有被启用时用它占位，省掉处处判空 */
 export function emptySemantics(model = ''): AiSemantics {
-  return { model, summary: '', colors: {}, components: {}, guidelines: [], prompt: '' };
+  return { model, summary: '', colors: {}, components: {}, added: { colors: {}, components: {} }, guidelines: [], prompt: '' };
 }
 
 /** 这份文案里有没有真内容 */
 export function hasAnyProse(s: AiSemantics | null): boolean {
   if (!s) return false;
+  const addedColors = s.added ? Object.keys(s.added.colors).length : 0;
+  const addedComponents = s.added ? Object.keys(s.added.components).length : 0;
   return (
     s.summary.length > 0 ||
     Object.keys(s.colors).length > 0 ||
     Object.keys(s.components).length > 0 ||
+    addedColors > 0 ||
+    addedComponents > 0 ||
     s.guidelines.length > 0 ||
     s.prompt.length > 0
   );
 }
 
 /** 界面上一句话概括 AI 这次补上了多少、丢了多少 */
-export function summarizeIssues(result: SemanticsResult): string {
+export function summarizeIssues(result: { semantics: AiSemantics | null; issues: SemanticsIssue[]; rejected?: boolean }): string {
   if (result.rejected) return 'AI 返回的内容无法解析，这份是纯本地生成版。';
   if (result.issues.length === 0) return 'AI 补全内容全部通过校验。';
   return `AI 补全有 ${result.issues.length} 处未通过校验，已逐条丢弃，其余照常采用。`;

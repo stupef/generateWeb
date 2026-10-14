@@ -54,8 +54,18 @@ export interface ExportPage {
   host: string;
   viewportWidth: number;
   viewportHeight: number;
-  /** 页面最终呈现的底色 */
-  canvasColor: string | null;
+    /**
+     * 页面底色，取自首屏绘制面积最大的表面，也就是肉眼看到的那个颜色。
+     * 所有对比度与深浅判断都拿它当基准。
+     */
+    canvasColor: string | null;
+    /**
+     * 文档画布色，即 body 上合成出来的颜色。
+     *
+     * 与 canvasColor 不一致时说明首屏被别的色块盖住了，比如 body 声明白底
+     * 而首屏被一个整屏深色区块盖成黑。这个值只用来解释差异，不要拿去算对比度。
+     */
+    documentCanvasColor?: string | null;
   prefersDark: boolean;
   textCharsTotal: number;
   /** 实际遍历到的元素数 */
@@ -184,8 +194,9 @@ export function buildSampleExport(input: ExportInput): SampleExport {
       host: hostOf(sample.url),
       viewportWidth: sample.viewportWidth,
       viewportHeight: sample.viewportHeight,
-      canvasColor: sample.canvasColor,
-      prefersDark: sample.prefersDark,
+        canvasColor: sample.canvasColor,
+        documentCanvasColor: sample.documentCanvasColor ?? null,
+        prefersDark: sample.prefersDark,
       textCharsTotal: sample.textCharsTotal,
       visited: sample.visited,
       skipped: sample.skipped,

@@ -109,7 +109,7 @@ npm run compile    # 只做类型检查（wxt prepare + tsc --noEmit）
 ### 2.4 跑检查
 
 ```bash
-npm run report        # 全量：20 个检查、992 条断言，产物落到 reports/，全量约 100 秒
+npm run report        # 全量：21 个检查、1029 条断言，产物落到 reports/，全量约 120 秒
 npm run check         # 常规链（不含浏览器那三项）
 ```
 
@@ -295,7 +295,7 @@ flowchart TB
 > 注意目录里有两个 `background.ts`：`src/core/background.ts` 是**渐变背景的散文说明**
 > （纯函数），`src/entrypoints/background.ts` 才是**背景脚本**。两者无关，别混。
 
-### 4.5 检查脚本（`scripts/`，共 20 个）
+### 4.5 检查脚本（`scripts/`，共 21 个）
 
 见 [7.1](#71-检查清单)。另有 `tools/verify-in-page.js`（347 行），**不参与自动化链**，
 粘进 DevTools 控制台用，取样范围与扩展一致但读取逻辑独立重写——两边对不上时问题只能落在
@@ -319,7 +319,14 @@ flowchart TB
 - `background: BackgroundSummary` —— 渐变与背景图检测摘要（**只检测计数，不提取颜色**）
 - `embedded: EmbeddedContentSummary` —— 结构层面的覆盖范围（PDF 嵌入、大框架、frameset 等）
 
-另有 `canvasColor` `prefersDark` `textCharsTotal` `visited` `skipped` `truncated` `elapsedMs`。
+另有 `canvasColor` `documentCanvasColor` `prefersDark` `textCharsTotal` `visited` `skipped`
+`truncated` `elapsedMs`。
+
+**`canvasColor` 与 `documentCanvasColor` 是两个不同的东西，别混用。** 前者是视觉底色，
+取自首屏里绘制面积最大的那个表面，下游所有对比度和深浅判断都以它为准；后者是文档画布色，
+也就是 `body` 上合成出来的那个颜色。两者不一致时说明首屏被整屏区块盖住了，比如 `body` 声明白底、
+首屏整屏全黑。**算对比度只能用前者**，后者只在 DESIGN.md 里用来讲清「为什么 body 是白而页面是黑」。
+见「踩坑速查」10.18。
 
 ### 5.2 `PanelState`（背景脚本 → 面板）
 
@@ -439,7 +446,7 @@ ProvenanceGroup.displayed === refs.length
 
 ## 7. 验证体系
 
-### 7.1 检查清单（`npm run report`，20 个检查、995 条断言）
+### 7.1 检查清单（`npm run report`，21 个检查、1029 条断言）
 
 | 检查 | 分组 | 断言 | 脚本 |
 | --- | --- | ---: | --- |
@@ -457,6 +464,7 @@ ProvenanceGroup.displayed === refs.length
 | 模型接入与失败归因 | AI 补全层 | 192 | `llm-check.ts` |
 | 结果来源与失败动作 | AI 补全层 | 56 | `notice-check.ts` |
 | 文档树遍历与框架归因 | 采集层 | 21 | `frame-check.mjs`（jsdom，约 80 秒，别急着中断） |
+| 页面底色口径 | 采集层 | 25 | `canvas-check.mjs`（jsdom，约 80 秒，同上） |
 | 端到端采集与分析 | 端到端 | 76 | `e2e-check.mjs`（真实 Chromium） |
 | 高亮的真机注入与还原 | 端到端 | 26 | `highlight-shot.mjs`（真实 Chromium） |
 | 真实样本的 DESIGN.md 样例 | 生成层 | — | `design-md-sample.ts`（无断言，产物供人看 + 跑 lint） |
@@ -791,6 +799,32 @@ Chrome 确实提供这条路径（默认 `enabled: false`，点过的页面单�
 注释会原样引用被禁的写法，直接匹配会被自己的解释性注释打红（`entry-check.mjs` 里的
 `stripComments()`）。
 
+### 10.18 页面底色不能只看 `body`，它常年被首屏的整屏区块盖住
+
+原先取的是 `surfaceOf(body).solid`。`surfaceOf` 遇到自身背景不透明的元素就直接返回它，**不看有没有
+被后代盖住**。`about.nike.com` 的唯一一条 `html,body{background:#ffffff}` 让 body 成了纯白，
+而真正盖住首屏的 `<nav>` 和整宽区块 `background:#111111` 都在子元素上。于是报告写「页面底色
+#FFFFFF，浅色主题」，页面却是整屏黑。
+
+真正的代价在下游的对比度过滤：挑主要文字色的条件是 `contrastRatio(c.hex, canvasHex) >= 1.5`。
+黑底白字的白色文字与画布值 `#ffffff` 对比度恰为 **1.0**，被滤掉；`#ffffff` 同时又正是
+`canvasCluster`，更早一步已被 `used` 锁死，**双重出局**。结果主要文字色落到次级灰上，色板整排语义偏掉。
+
+修法是加一遍**首屏主表面统计**：按绘制顺序把自带背景的元素用格心采样铺进一张覆盖首屏的网格，
+后画的盖住先画的。判据两条，都不靠调参：**文档画布色在首屏一个格子都没占到**，且**顶替者占首屏一半以上**。
+
+两个反直觉的地方，都踩过：
+
+- **别用「谁面积大」判底色。** 第一版用「主表面占三分之二以上就顶替」，浅灰区块盖住首屏七成时
+  底色就从白变成浅灰，可白底明明还在屏幕上。要问的是「文档画布色还在不在屏幕上」。
+  格心采样天然带宽容，比一格还细的缝不会被打中，一像素白边不至于翻案。
+- **网格必须精确铺满视口。** 第一版按 16px 切块补零头，最后一列只剩半格，格心落在视口外，
+  任何元素都盖不到它，「画布完全看不到」这条判据因此永假，**整条逻辑静默失效**。改成按视口尺寸
+  均分格宽格高才对。
+
+**教训通用：凡「判据依赖某片区域被完全覆盖」的写法，先问一句网格边界上那一圈格子是谁来盖。**
+回归在 `canvas-check.mjs`，七个用例跑真实采集函数，关键判据都做过否定测试。
+
 ---
 
 ## 11. 协作约定与代码风格
@@ -837,9 +871,10 @@ Chrome 确实提供这条路径（默认 `enabled: false`，点过的页面单�
 npm install                 # 装依赖
 npm run dev                 # 开发（WXT 热重载）
 npm run build               # 构建到 .output/chrome-mv3/ + 注入自包含校验
-npm run report              # 全量 20 检查 992 断言，产物到 reports/
+npm run report              # 全量 21 检查 1029 断言，产物到 reports/
 npm run check               # 常规链
 npm run check:entry         # 入口契约（先 build）
+npm run check:canvas        # 页面底色口径（jsdom 跑真实采集函数）
 npm run check:e2e           # 端到端（真 Chromium）
 npm run check:highlight     # 高亮真机注入（真 Chromium）
 
@@ -847,8 +882,9 @@ npx @google/design.md lint reports/design-md-sample/DESIGN.md
 npx @google/design.md lint reports/design-md-sample/DESIGN.ai-sample.md
 ```
 
-三条最容易被忽略、代价最大的纪律：
+四条最容易被忽略、代价最大的纪律：
 
 1. **改完源码要 build 并在 `chrome://extensions` 重新加载扩展**，否则症状等同代码 bug。
 2. **注入函数必须自包含**，别在 `collector.ts` / `highlight.ts` 里 import 运行时值。
 3. **别用 `sidePanel.setOptions({ enabled: false })` 管作用域**；它会让图标变灰、整套停摆。
+4. **页面底色不是 `body` 的背景色**；算对比度只能用首屏主表面那个值，见 10.18。

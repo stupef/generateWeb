@@ -129,6 +129,30 @@ const primary = { kind: 'button' as const, backgroundColor: '#3d5afe', textColor
 const secondary = { kind: 'button' as const, backgroundColor: '#ffffff', textColor: '#1f1f1c', borderWidth: 1, borderSides: 4, borderStyle: 'solid', borderColor: '#d0d0d0', radius: 8, padding: [10, 18, 10, 18] as [number, number, number, number], height: 40 };
 const ghost = { kind: 'button' as const, backgroundColor: null, textColor: '#3d5afe', borderWidth: 1, borderSides: 4, borderStyle: 'solid', borderColor: '#c7d2fe', radius: 8, padding: [10, 18, 10, 18] as [number, number, number, number], height: 40 };
 const input = { kind: 'input' as const, backgroundColor: '#ffffff', textColor: '#1f1f1c', borderWidth: 1, borderSides: 4, borderStyle: 'solid', borderColor: '#d8d8d4', radius: 6, padding: [9, 14, 9, 14] as [number, number, number, number], height: 38, childCount: 0, fontSize: 15 };
+
+// about.nike.com 上的两类按钮：深色画布上，真正 CTA 与画布同色，
+// 导航图标按钮比画布稍亮一档。旧实现会把图标按钮误判成主按钮。
+const nikeCTA = {
+  kind: 'button' as const,
+  backgroundColor: '#111111',
+  textColor: '#ffffff',
+  radius: 80,
+  padding: [13, 24, 13, 24] as [number, number, number, number],
+  height: 40,
+  width: 160,
+  textChars: 12,
+};
+const nikeIcon = {
+  kind: 'button' as const,
+  backgroundColor: '#2d2d2d',
+  textColor: null,
+  radius: 15,
+  padding: [0, 0, 0, 0] as [number, number, number, number],
+  height: 30,
+  width: 30,
+  textChars: 0,
+  inNav: true,
+};
 const nav = { kind: 'nav' as const, backgroundColor: '#ffffff', textColor: '#1f1f1c', borderWidth: 1, borderSides: 1, borderStyle: 'solid', borderColor: '#e8e8e4', radius: 0, padding: [0, 32, 0, 32] as [number, number, number, number], height: 64, childCount: 5, width: 1440, fillsParent: true };
 const card = { kind: 'card' as const, backgroundColor: '#f6f6f4', textColor: '#1f1f1c', radius: 12, padding: [20, 24, 20, 24] as [number, number, number, number], height: 180, width: 380, childCount: 3 };
 
@@ -321,6 +345,37 @@ const fullPage = analyzeComponents(
   check(
     `透明底无描边的纯文字按钮同样是幽灵按钮，实际 ${noBorder.specs[0] ? noBorder.specs[0].label : '缺失'}`,
     noBorder.specs.length === 1 && noBorder.specs[0] !== undefined && noBorder.specs[0].variant === 'ghost',
+  );
+}
+
+{
+  // 深色页面、CTA 与画布同色、导航图标按钮偏亮一档。
+  // 这是 about.nike.com 的真实情形：1 个 CTA + 5 个导航图标按钮。
+  const nike = analyzeComponents(
+    sample([one(nikeCTA), ...many(5, nikeIcon)], '#111111'),
+  );
+  const buttons = nike.specs.filter((x) => x.kind === 'button');
+  const primarySpec = buttons.find((x) => x.variant === 'primary');
+  check(
+    `深色页上真正 CTA 应被判为主按钮，实际 ${primarySpec ? primarySpec.backgroundColor : '缺失'}`,
+    buttons.length >= 1 && primarySpec !== undefined && primarySpec.backgroundColor === '#111111',
+  );
+  check(
+    `主按钮代表应是带文字的大尺寸 CTA，不是导航图标，实际高 ${primarySpec ? primarySpec.height : '缺失'}`,
+    primarySpec !== undefined && primarySpec.height === 40 && primarySpec.radius === 80,
+  );
+}
+
+{
+  // 深色页面上没有真实 CTA，只有贴近画布的次要按钮。它不应因兜底规则变成主按钮。
+  const onlySecondary = analyzeComponents(
+    sample([one({ ...nikeIcon, inNav: false, backgroundColor: '#1f1f1f' })], '#111111'),
+  );
+  const buttons = onlySecondary.specs.filter((x) => x.kind === 'button');
+  const primarySpec = buttons.find((x) => x.variant === 'primary');
+  check(
+    `无文字、无内边距的小按钮不应被兜底成主按钮，实际 ${primarySpec ? '有' : '无'}`,
+    primarySpec === undefined,
   );
 }
 

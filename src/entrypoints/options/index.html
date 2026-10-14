@@ -10,15 +10,15 @@
       WXT 用这个 meta 标签覆盖 options_ui 的同名字段，写在 wxt.config.ts 里会被它自己的默认值盖掉。
     -->
     <meta name="manifest.open_in_tab" content="true" />
-    <title>AI 补全设置</title>
+    <title>提取设置</title>
   </head>
   <body>
     <main class="wrap">
       <header class="head">
-        <h1>AI 语义补全</h1>
+        <h1>设计提取设置</h1>
         <p class="sub">
-          不配置也能用。没有 Key 时插件照常产出一份完整的 DESIGN.md，只是文案由本地规则生成，
-          不会带上风格综述、颜色语义、组件描述和提示词示例。
+          插件默认走本地规则路径，不联网也能产出一份完整的 DESIGN.md。
+          打开下方开关后改走 LLM skill 路径，由模型参与提取与语义补充。
         </p>
       </header>
 
@@ -61,10 +61,10 @@
         </label>
 
         <label class="check">
-          <input id="auto" type="checkbox" />
+          <input id="use-llm" type="checkbox" />
           <span>
-            提取完成后自动做一次补全
-            <em>每打开一次插件就会调用一次模型，按服务商计费。</em>
+            打开 LLM 提取
+            <em>开启后由 LLM skill 参与提取，关闭后全部交给本地规则。每次提取都会按这个开关选择路径。</em>
           </span>
         </label>
 
@@ -79,6 +79,12 @@
       <section class="status" id="status" hidden></section>
 
       <section class="card notes">
+        <h2>关于两条提取路径</h2>
+        <p>
+          本地规则路径不调用任何模型，速度最快、结果稳定，适合只需要设计 token 和组件参数的场景。
+          LLM skill 路径在规则结果之上叠加模型判断，用于补充风格综述、颜色语义、组件描述和提示词示例。
+          开关可以随时切，不需要重新配置 Key。
+        </p>
         <h2>关于存储</h2>
         <p>
           Key 存在本机的插件存储里（<code>chrome.storage.local</code>），不上传、不参与同步。
@@ -93,11 +99,11 @@
           模型收到的输入是从页面分析出来的设计简报（颜色、字号、间距、组件及其统计），
           不包含页面正文，也不包含你的 API Key 之外的任何凭据。
         </p>
-        <h2>关于校验</h2>
+        <h2>关于 LLM 提取的校验</h2>
         <p>
-          模型回来的每一段文字都必须不含任何阿拉伯数字。数值由本地分析层负责写，
-          模型只补语义。不合规的字段会被逐条丢弃，界面上会告诉你丢了几处。
-          这样「补全后的数值与提取结果一致」是被结构保证的，而不是靠提示词祈祷的。
+          数值部分由本地规则层负责，LLM 只补充语义。模型返回的内容如果包含阿拉伯数字，
+          或者引用了本次提取中不存在的 token，会被逐条丢弃并提示。
+          这样「数值与提取结果一致」是被结构保证的，不是靠提示词约束出来的。
         </p>
         <p class="foot" id="version-foot"></p>
       </section>

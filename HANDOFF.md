@@ -228,7 +228,7 @@ Anthropic Messages 和 Google Gemini `generateContent`，两者的鉴权头、sy
 直接调 jiti 和 tsc 的入口，绕开 npm 嵌套和 `wxt prepare`，全量 2 秒左右。
 
 ```bash
-npm run report            # 20 个检查、992 条断言，产物落到 reports/
+npm run report            # 21 个检查、1029 条断言，产物落到 reports/
 npm run check             # 常规链（不含浏览器那三项）
 npm run check:e2e         # 端到端采集，需要真实 Chromium
 npm run check:highlight   # 高亮的真机注入与还原，需要真实 Chromium
@@ -349,7 +349,7 @@ DESIGN_MD_CHROME="/tmp/pwdl/chrome-mac-arm64/Google Chrome for Testing.app/Conte
 
 ### 检查脚本
 
-`scripts/` 下：`llm` 192 / `diagnose` 125 / `semantics` 79 / `export` 76 / `e2e` 76 / `design-md` 74 / `notice` 56 / `effects` 45 / `typography` 44 / `spacing` 42 / `color` 37 / `components` 36 / `provenance` 28 / `highlight` 26 / `frame` 21 / `background` 19 / `entry` 19 条断言，加 `verify-injection`、`compile` 与 `design-md-sample` 三项不带断言的步骤，合计 **20 个检查、995 条断言**。
+`scripts/` 下：`llm` 192 / `diagnose` 125 / `semantics` 79 / `export` 76 / `e2e` 76 / `design-md` 74 / `notice` 56 / `effects` 45 / `typography` 44 / `spacing` 42 / `color` 37 / `components` 40 / `provenance` 28 / `highlight` 26 / `canvas` 25 / `frame` 26 / `background` 19 / `entry` 19 条断言，加 `verify-injection`、`compile` 与 `design-md-sample` 三项不带断言的步骤，合计 **21 个检查、1029 条断言**。
 
 ### 给用户的人工核验工具
 
@@ -604,6 +604,87 @@ http 与 https 的匹配模式，file 模式不在警告列表里，装的时候
 守卫是三处：源码不许出现 `openPanelOnActionClick: true`、源码必须留着拨回 `false` 的自愈、
 冒烟里启动那一次必须真的调到。前两条是文字匹配，第三条是执行验证——光源码里写着不算数，它可能
 待在一个走不到的分支里。三条都做过否定测试，确认会响。
+
+### 19. 页面底色不能只看 `body`，它常年被首屏的整屏区块盖住
+
+2026-10-13 由 `about.nike.com/en/` 暴露，现象是报告写「页面底色 #FFFFFF，浅色主题」，
+而那个页面肉眼是**整屏黑**。用户先问了一句「这个页面底色是什么」，一查才发现是工具的错。
+
+原来取的是 `surfaceOf(bodyEl).solid`。`surfaceOf` 的规则是「元素自己有不透明背景就直接返回它」，
+**不看这个背景有没有被后代盖住**。那个页面的全局样式只写了一条 `html,body{background:#ffffff}`，
+全文再没有第二条针对 `html` / `body` 的背景规则，于是 `body` 的 computed 背景就是纯白不透明，
+函数把 `#ffffff` 直接交出去了。真正盖住它的 `<nav>` 和首屏整宽区块 `background:#111111` 都在子元素上，
+压根没被问到。一句话概括，**它报的是「文档画布色」，而用户要看的是「视觉底色」**。
+
+真正的代价不在那一行字上，在它下游：
+
+| 位置 | 后果 |
+| --- | --- |
+| `design-md.ts` 概览与色板小节 | 写「页面底色 #FFFFFF，浅色主题」「底色偏浅」 |
+| `color.ts` 的 `isDark` | 深色页被判成浅色主题 |
+| **`color.ts` 挑主要文字色的对比度过滤** | **白色正文整段丢失** |
+
+第三条最伤。挑主要文字色的条件是 `contrastRatio(c.hex, canvasHex) >= 1.5`。黑底白字页里白色文字
+算出来就是 `#ffffff`，与画布值 `#ffffff` 的对比度恰好 **1.0**，被滤掉；更巧的是 `#ffffff` 同时
+就是 `canvasCluster`，更早一步已被 `used.add()` 锁死。**双重出局**，白色永远拿不到主要文字色，
+位置让给了次级灰 `#808080`。真机产出的色板是 `neutral #FFFFFF` / `primary #808080` /
+`tertiary #2D2D2D` / `surface #111111`，而实际是黑底白字、`#111111` 才是页面基底，
+**neutral 和 primary 的语义正好互换**。错误还会一路传到组件层，`nav` 被写成 `background:#111111`
+配 `textColor:#000000`，也就是黑底黑字。
+
+**为什么现有的检查一条都没响。** `color-check.ts` 里其实有深色用例，但 `sample()` 是把
+`canvasColor` 当参数**手喂**的，写用例的人自然会让它就等于页面底色；「用例二 深色站点」里 BODY 元素
+自己还写着 `backgroundColor: '#171721'`。也就是说，**「body 是不透明白色、真基底在子元素」这个组合在
+合成数据里根本构造不出来**，只有真机页面才长这样。这是采集端的口径错误，分析层再全的断言也兜不住。
+
+修法是给采集端加一遍**首屏主表面统计**：按绘制顺序把每个自带背景的元素用格心采样铺进一张覆盖首屏的
+网格，后画的盖住先画的，最后数哪种颜色占的格子最多。判据只有两条，都不靠调参：
+
+- **文档画布色在首屏一个格子都没占到**，说明它在首屏完全看不到，`body` 声明的底色和肉眼看到的无关
+- 顶替它的那个颜色要**占首屏一半以上**，几个色块平分首屏时谁也不是底色，宁可不动
+
+这里有两个反直觉的地方，都踩过：
+
+- **不要用比例阈值判「谁占得多」。** 第一版用的是「主表面占三分之二以上就顶替」，结果浅色页面里
+  一块浅灰区块盖住首屏七成，底色就从白变成了浅灰，可白底明明还在屏幕上。判据要看「文档画布色还在
+  不在屏幕上」，不是「谁的面积大」。格心采样天然带一点宽容，比一格还细的缝不会有格心落进去，
+  所以一条一像素的白边不至于把「完全看不到」判成「看得到」。
+- **网格的最后一行一列必须铺满视口。** 第一版按 16px 切块再补零头，最后一列只有半个格子，它的
+  格心落在视口外面，任何元素都盖不到它，「画布完全看不到」这条判据因此永远不成立，整条逻辑静默失效。
+  改成按视口尺寸均分格宽格高，每个格心都严格落在视口内，铺满视口的元素就能全部覆盖。
+
+两个值都留在样本里。`canvasColor` 是视觉底色，下游的对比度与深浅判断都以它为准；
+`documentCanvasColor` 是文档画布色，只在两者不一致时用来在 DESIGN.md 里讲清楚
+「为什么 body 是白而页面是黑」，免得读的人去 body 上看一眼就当成工具报错。
+
+回归在 `scripts/canvas-check.mjs`（`npm run check:canvas`），七个用例跑真实采集函数：
+常规浅色页不回归、about.nike.com 形态、深色区块在首屏之下、首屏只有一半深色、滚动位置不改变取样点、
+窄视口按视口宽度取样、三个色块平分首屏。关键判据全部做过否定测试，改坏一处就会响。
+
+### 20. 深色页上，真正主按钮可能与画布同色，而导航图标按钮比画布稍亮
+
+2026-10-14 由 about.nike.com/en/ 的 `button-primary` 暴露。报告出来的主按钮是 `#2D2D2D / 0 圆角 / 30px 高`，
+页面上并不存在这个组合。
+
+三个问题叠在一起：
+
+1. **百分比圆角被当成 0。** 圆形图标按钮的 `border-radius: 100%` 在 `radiusOf()` 里因为带 `%` 被整串跳过，
+   四个角都没读到，最大值保持初始 0。于是圆形被记成直角，跟真正的直角按钮落进同一个签名桶。
+2. **主次判据只看填充与画布对比度。** `#2D2D2D` 与 `#111111` 画布对比度 1.37，刚过 1.2，被判 primary；
+   真正主按钮 `#111111` 与画布同色对比度 1.0，被判 secondary。整类反转。
+3. **代表组按人数取胜。** 导航里有多个圆形图标按钮，真实 CTA 只有 1 个，人数投票把图标抬成代表。
+
+修法分三条：
+
+- `collector.ts` 的 `radiusOf()` 把百分比按元素短边折算成 px，并读取 `border-radius` 简写兜底
+  （jsdom 不会把简写展开到四角，真实浏览器会）。
+- `button-variant.ts` 在「填充不跳色」时新增兜底：带文字、文字/填充对比度高、有真实内边距的按钮
+  仍判 primary。导航图标没有文字和内边距，不会触发兜底。
+- `components.ts` 的按钮代表组排序从纯人数改成视觉重量分：带文字、尺寸大、不在导航里优先。
+
+回归在 `scripts/frame-check.mjs`（百分比圆角折算）和 `scripts/components-check.ts`（深色页 CTA 不被图标淹没）。
+修复后 `npm run report` 从 1020 条断言涨到 1029 条；端到端里那条旧失败「主按钮的品牌蓝进入色板」
+仍未修，但本次改动没有引入新的端到端失败。
 
 ## 未决与待议
 
