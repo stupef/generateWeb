@@ -363,15 +363,34 @@ async function enhanceWithAi(
     return;
   }
 
-  // 当前阶段 LLM 只产出 DESIGN.md 文档，侧栏卡片保持规则版（已在本次提取时渲染）。
-  // 模型文案作为文档文本返回，供复制/下载；卡片与左侧留档 JSON 始终来自本地规则。
+  // 模型产出了结构化分析（从 DESIGN.md 反解而来）：用它与规则路径完全相同的
+  // 卡片重渲，并刷新留档 JSON。反解是逐线兜底的，模型漏采的线条已回退到
+  // 规则分析，所以卡片始终完整、且和规则路径同构。
+  if (run.exported) {
+    if (artifacts) {
+      artifacts.json = serializeExport(run.exported);
+      artifacts.jsonName = exportFileName(run.exported);
+    }
+    renderResult(
+      sample,
+      run.exported.analysis.colors,
+      run.exported.analysis.typography,
+      run.exported.analysis.spacing,
+      run.exported.analysis.effects,
+      run.exported.analysis.components,
+      run.exported,
+      dropped,
+    );
+  }
+
+  // md 已是模型文本；无论是否反解到卡片，文档都反映 LLM 路径的结果
   if (artifacts) artifacts.designMd = md;
 
-  if (!run.designMd) {
-    // 模型没返回任何可用的 DESIGN.md，这次补全等于没发生，退回规则版并给重试
+  if (!run.exported && !run.designMd) {
+    // 既没有结构化分析也没有文档，这次补全等于没发生，退回规则版并给重试
     setOrigin(
       'fallback',
-      noteLine('模型没有返回可用的 DESIGN.md，这一份是纯本地生成版。', true) +
+      noteLine('模型没有返回可用的结构化分析或 DESIGN.md，这一份是纯本地生成版。', true) +
         noteLine(summarizeIssues(run)) +
         issuesNote(run.issues) +
         actionRow('fallback'),
@@ -380,16 +399,30 @@ async function enhanceWithAi(
   }
 
   const seconds = run.elapsedMs ? `，用时 ${(run.elapsedMs / 1000).toFixed(1)} 秒` : '';
-  setOrigin(
-    'ai',
-    noteLine(
-      `DESIGN.md 由 ${model} 从页面采样生成${seconds}。`,
-      true,
-    ) +
-      noteLine('侧栏卡片与左侧留档 JSON 始终来自本地规则分析；模型只补充了人读版的 DESIGN.md 文档。') +
-      noteLine(summarizeIssues(run)) +
-      issuesNote(run.issues),
-  );
+
+  if (run.exported) {
+    setOrigin(
+      'ai',
+      noteLine(
+        `结构化分析已由 ${model} 从 DESIGN.md 反解并覆盖到右侧卡片${seconds}。`,
+        true,
+      ) +
+        noteLine('能反解到的线条（颜色/排版/间距/圆角/组件）采用模型观察值，其余线条回退到本地规则。') +
+        noteLine(summarizeIssues(run)) +
+        issuesNote(run.issues),
+    );
+  } else {
+    setOrigin(
+      'ai',
+      noteLine(
+        `DESIGN.md 由 ${model} 从页面采样生成${seconds}。`,
+        true,
+      ) +
+        noteLine('模型的 DESIGN.md 没有可反解的结构化 token，右侧卡片仍来自本地规则分析；模型只补充了人读版的文档。') +
+        noteLine(summarizeIssues(run)) +
+        issuesNote(run.issues),
+    );
+  }
 }
 
 /**
