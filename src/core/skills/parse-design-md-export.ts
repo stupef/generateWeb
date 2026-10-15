@@ -176,7 +176,7 @@ function emptyEvidence(): ColorEvidence {
   };
 }
 
-/** 解析一个颜色字段（可能直接是 hex，也可能引用 {colors.x}）为 hex，无效返回 null */
+/** 把颜色字段（直接 hex 或引用 {colors.x}）解析为 hex，无效返回 null */
 function resolveColor(raw: string, colors: Record<string, string>): string | null {
   const v = deref(raw).trim();
   if (v.startsWith('colors.')) {
@@ -217,7 +217,15 @@ function buildColors(colors: Record<string, string>, rule: SampleExport): ColorA
 
 function roleFromKey(key: string): TypeRole {
   const k = key.toLowerCase();
-  if (k.startsWith('headline') || k.includes('display') || k.includes('title')) return 'heading';
+  // 标题：display / title（含 subtitle）/ headline（含 headline-lg）/ heading（含 heading2、heading3）/ h1~h6
+  if (
+    k.startsWith('headline') ||
+    k.includes('display') ||
+    k.includes('title') ||
+    k.includes('heading') ||
+    /^h[1-6]/.test(k)
+  )
+    return 'heading';
   if (k.startsWith('code')) return 'code';
   if (k.startsWith('caption')) return 'caption';
   if (k.startsWith('label') || k.startsWith('ui')) return 'ui';

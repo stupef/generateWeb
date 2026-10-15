@@ -20,6 +20,20 @@ import { parseDesignMdToExport } from './parse-design-md-export';
 import { generateDesignMd } from './run-skill';
 import skillPrompt from './page-sample-to-design-md/SKILL.md?raw';
 
+// 读取当前 skill 的 references/ 目录（output-format / evidence-rules / design-evidence 等），
+// 拼进发给模型的系统提示。Vite 在构建期把匹配的文件内容内联成字符串（eager: true）。
+// 过滤掉 Finder 复制产生的「*_副本.md」重复文件，避免重复内容污染提示。
+const referenceModules = import.meta.glob('./page-sample-to-design-md/references/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+const referencesText = Object.entries(referenceModules)
+  .filter(([path]) => !path.includes('_副本'))
+  .map(([, content]) => content.trim())
+  .filter((content) => content.length > 0)
+  .join('\n\n');
+
 /**
  * 把模型返回的原文完整保存下来，方便事后分析格式问题。
  *
@@ -87,6 +101,7 @@ export class LlmExtractSkill implements DesignSkill {
       config,
       signal,
       hasOriginPermission,
+      referencesText,
     );
 
     if (failure) {

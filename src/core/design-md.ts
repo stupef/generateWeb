@@ -951,8 +951,12 @@ export function renderDesignMd(exported: SampleExport, prose: AiSemantics | null
 export function frontMatterOf(md: string): string | null {
   if (!md.startsWith('---\n')) return null;
   const end = md.indexOf('\n---\n', 3);
-  if (end < 0) return null;
-  return md.slice(4, end + 1);
+  if (end >= 0) return md.slice(4, end + 1);
+  // 容忍结尾正好以 --- 收尾、没有尾随换行的情况（模型在「只输出 front matter」
+  // 这一步经常这么返回；多步拼接时后续内容前的 \n\n 也会补上这个换行）
+  const tail = md.lastIndexOf('\n---');
+  if (tail > 3 && tail + 4 === md.length) return md.slice(4, tail);
+  return null;
 }
 
 /**
